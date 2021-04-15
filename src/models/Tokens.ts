@@ -28,7 +28,7 @@ export const tokenSchema = new mongoose.Schema({
     symbol: String,
     usage: Array,
     hidden: Boolean,
-}, { collection: "secret_tokens" });
+}, { collection: "sienna_tokens" });
 
 // userSchema.pre("save", function save(next) {
 //     const user = this as UserDocument;
@@ -37,4 +37,4 @@ export const tokenSchema = new mongoose.Schema({
 //     return next();
 // });
 
-export const Tokens = mongoose.model<TokenDocument>("secret_tokens", tokenSchema);
+export const Tokens = mongoose.model<TokenDocument>("sienna_tokens", tokenSchema);
