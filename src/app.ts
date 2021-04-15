@@ -18,7 +18,7 @@ import * as tokenController from "./controllers/tokens";
 import * as opController from "./controllers/operations";
 import * as rewardsController from "./controllers/rewards";
 import * as secretSwapPairsController from "./controllers/secretswap_pairs";
-import * as secretSwapPoolsController from "./controllers/siennaswap_pool";
+import * as secretSwapPoolsController from "./controllers/secretswap_pools";
 import * as signerHealthController from "./controllers/signer_health";
 import config from "./util/config";
 
