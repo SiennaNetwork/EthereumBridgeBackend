@@ -12,7 +12,7 @@ const cache = Cache.getInstance();
 
 export const getSecretSwapPools = async (req: Request, res: Response) => {
   const pools: SecretSwapPoolDocument[] = await cache.get(
-    "siennaswap_pool",
+    "secretswap_pool",
     async () => {
       return SecretSwapPools.find({}, { _id: false });
     }

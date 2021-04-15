@@ -37,7 +37,7 @@ export const getToken = async (req: Request, res: Response) => {
 };
 
 export const getSecretTokens = async (req: Request, res: Response) => {
-    const tokens: TokenDocument[] = await cache.get("sienna_tokens", async () => {
+    const tokens: TokenDocument[] = await cache.get("secret_tokens", async () => {
         return Tokens.find({}, {_id: false});
     });
 
