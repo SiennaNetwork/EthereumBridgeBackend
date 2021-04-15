@@ -32,7 +32,7 @@ const timerTrigger: AzureFunction = async function (
         .then((pool) =>
           client
             .db(mongodbName)
-            .collection("secretswap_pools")
+            .collection("siennaswap_pool")
             .updateOne(
               { _id: pairAddress },
               { $set: { _id: pairAddress, ...pool } },
