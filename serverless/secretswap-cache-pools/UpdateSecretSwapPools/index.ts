@@ -39,14 +39,13 @@ const timerTrigger: AzureFunction = async function (
               { upsert: true }
             )
         )
-        .then((res) => {
-          context.log(res);
-        })
+        .then((res) => {})
         .catch((error) => {
           context.log(error);
         })
     )
   );
+  await client.close();
   context.log("Time it took", (Date.now() - start) / 1000, "seconds");
 };
 

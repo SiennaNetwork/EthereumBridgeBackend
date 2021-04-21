@@ -1,11 +1,11 @@
 {
+  "scriptFile": "../dist/FetchPriceSecretSwap/index.js",
   "bindings": [
     {
       "name": "myTimer",
       "type": "timerTrigger",
       "direction": "in",
-      "schedule": "*/30 * * * * *"
+      "schedule": "0 */5 * * * *"
     }
-  ],
-  "scriptFile": "../dist/UpdateSecretSwapPools/index.js"
+  ]
 }
