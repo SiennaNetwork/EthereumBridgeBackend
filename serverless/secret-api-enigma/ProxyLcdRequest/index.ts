@@ -32,7 +32,7 @@ const httpTrigger: AzureFunction = async function (context: Context, req: HttpRe
 
     const response = await fetch(url, {
         method: req.method,
-        headers: req.headers,
+        //headers: req.headers,
         body: JSON.stringify(req.body),
         agent: httpsAgent
     });
