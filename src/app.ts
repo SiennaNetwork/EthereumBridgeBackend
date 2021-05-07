@@ -103,7 +103,7 @@ app.get("/rewards/", rewardsController.getRewardPools);
 app.get("/rewards/:pool", rewardsController.getPool);
 
 app.get("/secretswap_pairs/", secretSwapPairsController.getSecretSwapPairs);
-app.get("/siennaswap_pool/", secretSwapPoolsController.getSecretSwapPools);
+app.get("/siennaswap_pools/", secretSwapPoolsController.getSecretSwapPools);
 
 app.get("/signer_health/", signerHealthController.getSignerHealth);
 
