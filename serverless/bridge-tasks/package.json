@@ -1,23 +1,24 @@
 {
-  "name": "",
   "version": "",
   "scripts": {
     "build": "tsc",
     "build:production": "npm run prestart && npm prune --production",
     "watch": "tsc --w",
-    "prestart": "npm run build && func extensions install",
+    "prestart": "npm run build",
     "start:host": "func start",
     "start": "npm-run-all --parallel start:host watch",
     "test": "echo \"No tests yet...\""
   },
-  "description": "",
+  "author": "",
   "devDependencies": {
     "@azure/functions": "^1.0.1-beta1",
     "npm-run-all": "^4.1.5",
     "typescript": "^3.3.3"
   },
   "dependencies": {
-    "mongodb": "^3.6.5",
-    "secretjs": "^0.11.0"
+    "mongodb": "^3.6.6",
+    "node-fetch": "^2.6.1",
+    "secretjs": "^0.11.0",
+    "web3": "^1.3.5"
   }
 }

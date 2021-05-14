@@ -18,48 +18,29 @@ const timerTrigger: AzureFunction = async function (
     throw new Error("Failed to connect to database");
   });
 
-  const pairs: any = (
+  const pairs = (
     await client.db(mongodbName).collection("secretswap_pairs").find().toArray()
-  )
-
+  ).map((p) => p._id);
 
   const secretjs = new CosmWasmClient(secretNodeURL);
+
   const start = Date.now();
   await Promise.all(
-    pairs.map((pair) =>
+    pairs.map((pairAddress) =>
       secretjs
-        .queryContractSmart(pair.contract_addr, 'pool' as any)
-        .then(async (pool) => {
-          const entry = {
-            total_share: 0,
-            assets: Object.keys(pool.pool.pair).map(key => {
-              return {
-                info: {
-                  token: pool.pool.pair[key].custom_token
-                },
-                amount: pool.pool['amount_' + key.split('_')[1]]
-              }
-            })
-          };
-          let q = {};
-          entry.assets.map((asset) => {
-            q['assets.info.token.contract_addr'] = asset.info.token.contract_addr;
-            entry.total_share += parseInt(asset.amount)
-          });
-
-          return await client
+        .queryContractSmart(pairAddress, { pool: {} })
+        .then((pool) =>
+          client
             .db(mongodbName)
-            .collection("secretswap_pool")
-            .findOneAndUpdate(
-              q,
-              { $set: entry },
+            .collection("secretswap_pools")
+            .updateOne(
+              { _id: pairAddress },
+              { $set: { _id: pairAddress, ...pool } },
               { upsert: true }
             )
-        })
-        .then(async (res) => {
-          console.log('RESULT')
-        })
-        .catch(async (error) => {
+        )
+        .then((res) => {})
+        .catch((error) => {
           context.log(error);
         })
     )
