@@ -27,7 +27,7 @@ export interface SecretSwapPoolDocument extends mongoose.Document {
 
 export const secretSwapPoolSchema = new mongoose.Schema(
   {},
-  { collection: "secretswap_pool" }
+  { collection: "secretswap_pools" }
 );
 
 export const SecretSwapPools = mongoose.model<SecretSwapPoolDocument>(
