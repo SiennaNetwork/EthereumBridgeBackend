@@ -3,6 +3,8 @@ import { MongoClient } from "mongodb";
 import Web3 from "web3";
 import fetch from "node-fetch";
 
+const supportedNetworks = ["ethereum", "binancesmartchain"]
+
 const erc20ABI = [
     {
         constant: true,
@@ -206,15 +208,17 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     //context.log(tokens);
 
     const balances: LockedResult[] = await Promise.all<LockedResult>(
-        tokens.map(async (token): Promise<LockedResult> => {
+        tokens
+            .filter((token) => supportedNetworks.includes(token.src_network.trim().toLowerCase()))
+            .map(async (token): Promise<LockedResult> => {
 
             let balance;
             if (token.src_address === "native") {
                 balance = await getEthBalance(process.env["MultisigAddress"]);
             }
-            else if (token.src_coin === "WSCRT" || token.src_coin === "SEFI") {
+            else if (token.src_coin === "WSCRT" || token.src_coin === "SEFI" || token.src_coin === "WSIENNA") {
                 balance = await getErcSupply(token.src_address);
-                context.log(`total supply for ${token.src_coin}: ${balance}`);
+                //context.log(`total supply for ${token.src_coin}: ${balance}`);
             } else if (token.display_props.symbol.startsWith(uniLPPrefix)) {
                 // uni price updates from here
                 balance = await getErcBalance(process.env["MultisigAddress"], token.src_address);
@@ -223,6 +227,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             }
 
             else {
+                //context.log(`updating supply for  ${process.env["MultisigAddress"]}: ${token.src_address}`);
                 balance = await getErcBalance(process.env["MultisigAddress"], token.src_address);
             }
 
