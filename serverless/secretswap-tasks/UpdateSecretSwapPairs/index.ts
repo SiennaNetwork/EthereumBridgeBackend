@@ -12,6 +12,7 @@ const timerTrigger: AzureFunction = async function (
   context: Context,
   myTimer: any
 ): Promise<void> {
+  console.log(secretNodeURL)
   const client: MongoClient = await MongoClient.connect(mongodbUrl, {
     useUnifiedTopology: true,
     useNewUrlParser: true,
@@ -48,16 +49,39 @@ const timerTrigger: AzureFunction = async function (
   try {
     pairs = (
       await Promise.all(
-        pairsAddressesNotInDb.map((addr) =>
-          secretjs.queryContractSmart(addr, { pair: {} })
-        )
+        pairsAddressesNotInDb.map(async (addr) => {
+          let pair: any = {};
+          return secretjs.queryContractSmart(addr, 'pair_info' as any).then((pair_info) => {
+            pair.contract_addr = addr;
+            pair._id = addr;
+            pair.liquidity_token = pair_info.pair_info.liquidity_token.address;
+            pair.token_code_hash = pair_info.pair_info.liquidity_token.code_hash;
+            pair.asset_infos = Object.keys(pair_info.pair_info.pair).map((key) => {
+              return {
+                contract_addr: pair_info.pair_info.pair[key].custom_token.contract_addr,
+                token_code_hash: pair_info.pair_info.pair[key].custom_token.token_code_hash,
+              }
+            })
+            return secretjs.queryContractSmart(addr, 'factory_info' as any);
+          }).then((factory_info) => {
+            pair.factory = {
+              address: factory_info.factory_info.address,
+              code_hash: factory_info.factory_info.code_hash
+            }
+            return secretjs.queryContractSmart(addr, 'pool' as any);
+          }).then((pool) => {
+            pair.asset0_volume = pool.pool.amount_0;
+            pair.asset1_volume = pool.pool.amount_1;
+            return pair;
+          })
+        })
       )
     ).map((p) => {
       p._id = p.contract_addr;
       return p;
     });
   } catch (e) {
-    context.log("secretjs error on queryContractSmart:", e.message);
+    context.log("secretjs error on queryContractSmart:", e);
     client.close();
     return;
   }

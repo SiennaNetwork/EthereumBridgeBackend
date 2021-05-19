@@ -28,18 +28,34 @@ const timerTrigger: AzureFunction = async function (
   await Promise.all(
     pairs.map((pairAddress) =>
       secretjs
-        .queryContractSmart(pairAddress, { pool: {} })
-        .then((pool) =>
-          client
+        .queryContractSmart(pairAddress, 'pool' as any)
+        .then((pool_info) => {
+          return client
             .db(mongodbName)
             .collection("secretswap_pools")
             .updateOne(
               { _id: pairAddress },
-              { $set: { _id: pairAddress, ...pool } },
+              {
+                $set: {
+                  _id: pairAddress, ...{
+                    assets: Object.keys(pool_info.pool.pair).map((key) => {
+                      return {
+                        amount: pool_info.pool['amount_' + key.split('_')[1]],
+                        info: {
+                          token: {
+                            contract_addr: pool_info.pool.pair[key].custom_token.contract_addr,
+                            token_code_hash: pool_info.pool.pair[key].custom_token.token_code_hash
+                          }
+                        }
+                      }
+                    })
+                  }
+                }
+              },
               { upsert: true }
             )
-        )
-        .then((res) => {})
+        })
+        .then((res) => { })
         .catch((error) => {
           context.log(error);
         })
