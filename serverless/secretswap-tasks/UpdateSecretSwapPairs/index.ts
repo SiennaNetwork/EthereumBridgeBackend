@@ -1,6 +1,7 @@
 import { AzureFunction, Context } from "@azure/functions";
-import { CosmWasmClient } from "secretjs";
+import { SigningCosmWasmClient } from "secretjs";
 import { MongoClient } from "mongodb";
+import { ExchangeContract } from 'amm-types/dist/lib/contract';
 
 const secretNodeURL: string = process.env["secretNodeURL"];
 const mongodbName: string = process.env["mongodbName"];
@@ -12,7 +13,6 @@ const timerTrigger: AzureFunction = async function (
   context: Context,
   myTimer: any
 ): Promise<void> {
-  console.log(secretNodeURL)
   const client: MongoClient = await MongoClient.connect(mongodbUrl, {
     useUnifiedTopology: true,
     useNewUrlParser: true,
@@ -25,11 +25,11 @@ const timerTrigger: AzureFunction = async function (
   const pairsInDb = new Set(
     (await dbCollection.find().toArray()).map((p) => p._id)
   );
-  const secretjs = new CosmWasmClient(secretNodeURL);
+  const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, null, null);
 
   let pairsAddressesNotInDb: string[];
   try {
-    pairsAddressesNotInDb = (await secretjs.getContracts(pairCodeId))
+    pairsAddressesNotInDb = (await signingCosmWasmClient.getContracts(pairCodeId))
       .filter((p) => p.label.endsWith(`${factoryContract}-${pairCodeId}`))
       .map((p) => p.address)
       .filter((addr) => !pairsInDb.has(addr));
@@ -51,27 +51,30 @@ const timerTrigger: AzureFunction = async function (
       await Promise.all(
         pairsAddressesNotInDb.map(async (addr) => {
           let pair: any = {};
-          return secretjs.queryContractSmart(addr, 'pair_info' as any).then((pair_info) => {
+          const ammclient = new ExchangeContract(addr, signingCosmWasmClient);
+          return ammclient.get_pair_info().then((pair_info) => {
             pair.contract_addr = addr;
             pair._id = addr;
-            pair.liquidity_token = pair_info.pair_info.liquidity_token.address;
-            pair.token_code_hash = pair_info.pair_info.liquidity_token.code_hash;
-            pair.asset_infos = Object.keys(pair_info.pair_info.pair).map((key) => {
+            pair.liquidity_token = pair_info.liquidity_token.address;
+            pair.token_code_hash = pair_info.liquidity_token.code_hash;
+            pair.asset_infos = Object.keys(pair_info.pair).map((key) => {
               return {
-                contract_addr: pair_info.pair_info.pair[key].custom_token.contract_addr,
-                token_code_hash: pair_info.pair_info.pair[key].custom_token.token_code_hash,
+                token: {
+                  contract_addr: pair_info.pair[key].custom_token.contract_addr,
+                  token_code_hash: pair_info.pair[key].custom_token.token_code_hash,
+                }
               }
             })
-            return secretjs.queryContractSmart(addr, 'factory_info' as any);
+            return ammclient.get_factory_info();
           }).then((factory_info) => {
             pair.factory = {
-              address: factory_info.factory_info.address,
-              code_hash: factory_info.factory_info.code_hash
+              address: factory_info.address,
+              code_hash: factory_info.code_hash
             }
-            return secretjs.queryContractSmart(addr, 'pool' as any);
+            return ammclient.get_pool();
           }).then((pool) => {
-            pair.asset0_volume = pool.pool.amount_0;
-            pair.asset1_volume = pool.pool.amount_1;
+            pair.asset0_volume = pool.amount_0;
+            pair.asset1_volume = pool.amount_1;
             return pair;
           })
         })
