@@ -1,36 +1,34 @@
 /* eslint-disable @typescript-eslint/camelcase */
 import mongoose from "mongoose";
-
-// export interface Token {
-//     symbol: string;
-//     address: string;
-//     decimals: number;
-// }
+import { ContractInfo } from "amm-types/dist/lib/types";
 
 export interface RewardsDocument extends mongoose.Document {
-    pool_address: string;
-    // inc_token: Token;
-    // rewards_token: Token;
-    total_locked: string;
-    pending_rewards: string;
-    deadline: string;
+    lp_token_address: string;
+
+    /**
+     * The reward amount allocated to this pool.
+     */
+    share: number;
+    /**
+     * Total amount locked by all participants.
+     */
+    total_locked: number;
 }
 
+
+
 export const rewardsSchema = new mongoose.Schema({
-    pool_address: String,
-    // inc_token: {
-    //     symbol: String,
-    //     address: String,
-    //     decimals: Number
-    // },
-    // rewards_token: {
-    //     symbol: String,
-    //     address: String,
-    //     decimals: Number
-    // },
-    total_locked: String,
-    pending_rewards: String,
-    deadline: String,
+    lp_token_address: String,
+   
+    /**
+     * The reward amount allocated to this pool.
+     */
+    share: Number,
+   
+    /**
+     * Total amount locked by all participants.
+     */
+    total_locked: Number
 }, { collection: "rewards_data" });
 
 export const Rewards = mongoose.model<RewardsDocument>("rewards", rewardsSchema);

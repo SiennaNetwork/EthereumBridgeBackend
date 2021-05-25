@@ -18,10 +18,10 @@ export const getRewardPools = async (req: Request, res: Response) => {
 
 };
 
-export const getPool = async (req: Request, res: Response) => {
-    const poolAddr = req.params.pool;
+export const getRewardPool = async (req: Request, res: Response) => {
+    const lpTokenAddress = req.params.lp_token_address;
     // eslint-disable-next-line @typescript-eslint/camelcase
-    const pool: RewardsDocument = await cache.get(poolAddr, async () => Rewards.findOne({pool_address: poolAddr}, {_id: false}));
+    const pool: RewardsDocument = await cache.get(lpTokenAddress, async () => Rewards.findOne({lp_token_address: lpTokenAddress}, {_id: false}));
 
     if (!pool) {
         res.status(404);

@@ -3,14 +3,18 @@
 
 import {AzureFunction, Context} from "@azure/functions";
 import {MongoClient} from "mongodb";
-import {CosmWasmClient, EnigmaUtils} from "secretjs";
+import {CosmWasmClient, EnigmaUtils, SigningCosmWasmClient} from "secretjs";
 import fetch from "node-fetch";
+import { RewardsContract } from "amm-types/dist/lib/contract";
 
 const coinGeckoApi = "https://api.coingecko.com/api/v3/simple/price?";
 
 const futureBlock = process.env["futureBlock"] || 10_000_000;
 const LPPrefix = "LP-";
 const MASTER_CONTRACT = process.env["masterStakingContract"] || "secret13hqxweum28nj0c53nnvrpd23ygguhteqggf852";
+
+const SIENNA_REWARDS_CONTRACT = "xxxxx"; // TODO CHANGE TO ENV
+
 
 function getToken(tokens: any[], symbol: string) {
     return tokens.find(t => symbol.toLowerCase().includes(t.display_props.symbol.toLowerCase()));
@@ -29,37 +33,19 @@ interface Token {
 }
 
 interface RewardPoolData {
-    pool_address: string;
+    pool_address: string; // the LP token 
     inc_token: Token;
     rewards_token: Token;
     total_locked: string;
-    pending_rewards: string;
-    deadline: string;
 }
 
-function queryMasterContractPendingRewards(address: string) {
-    return {
-        pending: { spy_addr: address, block: futureBlock }
-    };
-}
-
-function queryDeadline() {
-    return {
-        end_height: {},
-    };
-}
-
+´
 function queryTokenInfo() {
     return {
         token_info: {}
     };
 }
 
-function queryRewardPool() {
-    return {
-        reward_pool_balance: {}
-    };
-}
 
 function querySnip20Balance(address: string, key: string) {
     return {
@@ -155,71 +141,55 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     const seed = EnigmaUtils.GenerateNewSeed();
     const queryClient = new CosmWasmClient(`${process.env["secretNodeURL"]}`, seed);
+    const signingCosmWasmClient = new SigningCosmWasmClient(`${process.env["secretNodeURL"]}`, null, null);
+
     await Promise.all(
         pools.map(async pool => {
             const poolAddr = pool.pool_address;
             const incTokenAddr = pool.inc_token.address;
 
-            let oldStylePool;
-            try {
-                await queryClient.queryContractSmart(poolAddr, queryDeadline());
-                oldStylePool = true;
-            } catch (e) {
-                oldStylePool = false;
-            }
+            const rewardsContract = new RewardsContract(SIENNA_REWARDS_CONTRACT, signingCosmWasmClient, queryClient);
+            const fetchedPools = await rewardsContract.get_pools();
+            const thePool = fetchedPools.find(item => item.lp_token.address === incTokenAddr);
 
-            if (oldStylePool) {
-                const [rewardsBalance, incBalance, deadline, incTokenPrice, rewardTokenPrice] = await Promise.all([
-                    queryClient.queryContractSmart(poolAddr, queryRewardPool()),
-                    queryClient.queryContractSmart(incTokenAddr, querySnip20Balance(poolAddr, `${process.env["viewingKey"]}`)),
-                    queryClient.queryContractSmart(poolAddr, queryDeadline()),
-                    (await fetch(coinGeckoApi + new URLSearchParams({
-                        vs_currencies: "usd",
-                        ids: pool.inc_token.name
-                    }))).json(),
-                    (await fetch(coinGeckoApi + new URLSearchParams({
-                        vs_currencies: "usd",
-                        ids: pool.rewards_token.name
-                    }))).json()
+            const rewardTokenPrice = await getPriceForSymbol(queryClient, pool.rewards_token.address, pool.rewards_token.symbol, tokens, pairs);
+            context.log(`rewards token price ${rewardTokenPrice}`);
+            
+            const incTokenPrice = await getPriceForSymbol(queryClient, incTokenAddr, pool.inc_token.symbol, tokens, pairs, context);
+            context.log(`inc token price ${incTokenPrice}`);
 
-                ]);
+            await db.collection("rewards_data").updateOne({ "pool_address": poolAddr },
+                {
+                    $set: {
+                        lp_token_address: thePool.lp_token.address,
+                        share: thePool.share,
+                        total_locked: thePool.size,
+                        "inc_token.price": incTokenPrice,
+                        "rewards_token.price": rewardTokenPrice
+                    }
+                });
+            
 
-                await db.collection("rewards_data").updateOne({ "pool_address": poolAddr },
-                    {
-                        $set: {
-                            total_locked: incBalance.balance.amount,
-                            pending_rewards: rewardsBalance.reward_pool_balance.balance,
-                            deadline: deadline.end_height.height,
-                            "inc_token.price": incTokenPrice[pool.inc_token.name].usd,
-                            "rewards_token.price": rewardTokenPrice[pool.rewards_token.name].usd
-                        }
-                    });
-            } else {
-                context.log("new style rewards token, yay!");
-                const pendingRewards = await queryClient.queryContractSmart(MASTER_CONTRACT, queryMasterContractPendingRewards(poolAddr));
-                const incBalance = await queryClient.queryContractSmart(incTokenAddr, querySnip20Balance(poolAddr, `${process.env["viewingKeySpy"]}`));
-
-                context.log(`pending: ${JSON.stringify(pendingRewards)}`);
-                context.log(`inc balance: ${JSON.stringify(incBalance)}`);
-                const rewardTokenPrice = await getPriceForSymbol(queryClient, pool.rewards_token.address, pool.rewards_token.symbol, tokens, pairs);
-                context.log(`rewards token price ${rewardTokenPrice}`);
-                const incTokenPrice = await getPriceForSymbol(queryClient, incTokenAddr, pool.inc_token.symbol, tokens, pairs, context);
-
-                context.log(`inc token price ${incTokenPrice}`);
-
-                await db.collection("rewards_data").updateOne({ "pool_address": poolAddr },
-                    {
-                        $set: {
-                            total_locked: incBalance.balance.amount,
-                            pending_rewards: pendingRewards.pending.amount,
-                            deadline: futureBlock,
-                            "inc_token.price": incTokenPrice,
-                            "rewards_token.price": rewardTokenPrice
-                        }
-                    });
-            }
-
-            // Query chain for things needed to be updated
+                // const [incTokenPrice, rewardTokenPrice] = await Promise.all([
+                // (await fetch(coinGeckoApi + new URLSearchParams({
+                //         vs_currencies: "usd",
+                //         ids: pool.inc_token.name
+                //     }))).json(),
+                //     (await fetch(coinGeckoApi + new URLSearchParams({
+                //         vs_currencies: "usd",
+                //         ids: pool.rewards_token.name
+                //     }))).json()
+                // ]);
+                // await db.collection("rewards_data").updateOne({ "pool_address": poolAddr },
+                //     {
+                //         $set: {
+                //             total_locked: thePool.size,
+                //             // pending_rewards: rewardsBalance.reward_pool_balance.balance,
+                //             // deadline: deadline.end_height.height,
+                //             "inc_token.price": incTokenPrice[pool.inc_token.name].usd,
+                //             "rewards_token.price": rewardTokenPrice[pool.rewards_token.name].usd
+                //         }
+                //     });
 
         })
     ).catch(
