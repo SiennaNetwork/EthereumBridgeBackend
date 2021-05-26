@@ -100,7 +100,7 @@ app.post("/operations/:operation", opController.updateOperation);
 app.get("/operations/:operation", opController.getOperation);
 
 app.get("/rewards/", rewardsController.getRewardPools);
-app.get("/rewards/:pool", rewardsController.getPool);
+app.get("/rewards/:pool", rewardsController.getRewardPool);
 
 app.get("/secretswap_pairs/", secretSwapPairsController.getSecretSwapPairs);
 app.get("/siennaswap_pools/", secretSwapPoolsController.getSecretSwapPools);

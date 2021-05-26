@@ -39,7 +39,7 @@ interface RewardPoolData {
     total_locked: string;
 }
 
-´
+
 function queryTokenInfo() {
     return {
         token_info: {}
