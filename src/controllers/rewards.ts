@@ -25,6 +25,8 @@ export const getPool = async (req: Request, res: Response) => {
 
     if (!pool) {
         res.status(404);
+        res.send("Not found");
+        return;
     } else {
         try {
             res.json( { pool: pool });

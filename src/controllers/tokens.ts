@@ -31,6 +31,8 @@ export const getToken = async (req: Request, res: Response) => {
     //const pair = await Pairing.findOne({src_coin: token});
     if (!pair) {
         res.status(404);
+        res.send("Not found");
+        return;
     } else {
         res.json({token: pair});
     }
