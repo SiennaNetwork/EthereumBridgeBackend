@@ -1,6 +1,18 @@
 import { Request, Response } from "express";
+import { checkSchema } from "express-validator";
 import { ClaimProofDocument, EthClaimProofs, ScrtClaimProofs } from "../models/ClaimProof";
 import { bech32 } from "bech32";
+import validate from "../util/validate";
+
+export const userAddrValidator = validate(checkSchema({
+  addr: {
+      in: ["params"],
+      isString: { 
+          errorMessage: "User address must be a string"
+      },
+      trim: true,
+  }
+}));
 
 export const getEthProof = async (req: Request, res: Response) => {
   const userAddr = req.params.addr;

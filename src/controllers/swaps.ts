@@ -1,7 +1,9 @@
 import {Request, Response} from "express";
+import {checkSchema} from "express-validator";
 import {Swap, SwapDocument} from "../models/Swap";
 import logger from "../util/logger";
 import {Operation, OperationDocument} from "../models/Operation";
+import validate from "../util/validate";
 
 export const getAllSwaps = async (req: Request, res: Response) => {
     logger.debug('getAllSwaps');
@@ -15,6 +17,16 @@ export const getAllSwaps = async (req: Request, res: Response) => {
     }
 
 };
+
+export const getSwapInfoValidator = validate(checkSchema({
+    swap: {
+        in: ["params"],
+        isUUID: { 
+            errorMessage: "Operation ID must be UUID"
+        },
+        trim: true,
+    }
+}));
 
 export const getSwapInfo = async (req: Request, res: Response) => {
     const id = req.params.swap;

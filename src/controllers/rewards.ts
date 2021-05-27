@@ -1,6 +1,8 @@
 import {Request, Response} from "express";
-import { RewardsDocument, Rewards } from "../models/Rewards";
+import {checkSchema} from "express-validator";
+import {RewardsDocument, Rewards} from "../models/Rewards";
 import Cache from "../util/cache";
+import validate from "../util/validate";
 
 const cache = Cache.getInstance();
 
@@ -17,6 +19,16 @@ export const getRewardPools = async (req: Request, res: Response) => {
     }
 
 };
+
+export const getPoolValidator = validate(checkSchema({
+    pool: {
+        in: ["params"],
+        isString: { 
+            errorMessage: "Pool address must be a string"
+        },
+        trim: true,
+    }
+}));
 
 export const getPool = async (req: Request, res: Response) => {
     const poolAddr = req.params.pool;
