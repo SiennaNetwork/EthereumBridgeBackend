@@ -169,22 +169,36 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             }
 
             if (oldStylePool) {
-                const [rewardsBalance, incBalance, deadline, incTokenPrice, rewardTokenPrice] = await Promise.all([
+                const data = await Promise.all([
                     queryClient.queryContractSmart(poolAddr, queryRewardPool()),
                     queryClient.queryContractSmart(incTokenAddr, querySnip20Balance(poolAddr, `${process.env["viewingKey"]}`)),
                     queryClient.queryContractSmart(poolAddr, queryDeadline()),
                     (await fetch(coinGeckoApi + new URLSearchParams({
                         vs_currencies: "usd",
                         ids: pool.inc_token.name
-                    }))).json(),
+                    })).then((response) => {
+                        if (response.ok) {
+                            return response;
+                        }
+                        throw new Error(`Network response for "inc token" was not ok. Status: ${response.status}`);
+                    })).json(),
                     (await fetch(coinGeckoApi + new URLSearchParams({
                         vs_currencies: "usd",
                         ids: pool.rewards_token.name
-                    }))).json()
+                    })).then((response) => {
+                        if (response.ok) {
+                            return response;
+                        }
+                        throw new Error(`Network response for "reward token" was not ok. Status: ${response.status}`);
+                    })).json()
+                ]).catch(err => {
+                    context.log(`Failed update rewards stats for pool_address: ${pool.pool_address}. ${err}`);
+                });
 
-                ]);
+                if (Array.isArray(data) && !data.length) {
+                    const [rewardsBalance, incBalance, deadline, incTokenPrice, rewardTokenPrice] = data;
 
-                await db.collection("rewards_data").updateOne({ "pool_address": poolAddr },
+                    await db.collection("rewards_data").updateOne({ "pool_address": poolAddr },
                     {
                         $set: {
                             total_locked: incBalance.balance.amount,
@@ -194,6 +208,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                             "rewards_token.price": rewardTokenPrice[pool.rewards_token.name].usd
                         }
                     });
+                }
             } else {
                 context.log("new style rewards token, yay!");
                 const pendingRewards = await queryClient.queryContractSmart(MASTER_CONTRACT, queryMasterContractPendingRewards(poolAddr));

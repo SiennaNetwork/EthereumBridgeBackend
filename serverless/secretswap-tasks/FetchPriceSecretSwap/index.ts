@@ -34,7 +34,12 @@ const getScrtPrice = async (): Promise<number> => {
         ids: "secret",
         // eslint-disable-next-line @typescript-eslint/camelcase
         vs_currencies: "USD"
-    })).catch(
+    })).then((response) => {
+        if (response.ok) {
+            return response;
+        }
+        throw new Error(`Network response was not ok. Status: ${response.status}`);
+    }).catch(
         (_) => {
             throw new Error("Failed to parse response for secret");
         }
