@@ -88,27 +88,27 @@ app.use(lusca.xframe("SAMEORIGIN"));
 app.use(lusca.xssProtection(true));
 
 app.get("/tokens/", tokenController.getTokenPairings);
-app.get("/tokens/:token", tokenController.getToken);
+app.get("/tokens/:token", tokenController.getTokenValidator, tokenController.getToken);
 
 app.get("/sienna_tokens/", tokenController.getSecretTokens);
 
 app.get("/swaps/", swapController.getAllSwaps);
-app.get("/swaps/:swap", swapController.getSwapInfo);
+app.get("/swaps/:swap", swapController.getSwapInfoValidator, swapController.getSwapInfo);
 
 app.post("/operations/", opController.newOperation);
 app.post("/operations/:operation", opController.updateOperation);
-app.get("/operations/:operation", opController.getOperation);
+app.get("/operations/:operation", opController.getOperationValidator, opController.getOperation);
 
 app.get("/rewards/", rewardsController.getRewardPools);
-app.get("/rewards/:pool", rewardsController.getPool);
+app.get("/rewards/:pool", rewardsController.getPoolValidator, rewardsController.getPool);
 
 app.get("/secretswap_pairs/", secretSwapPairsController.getSecretSwapPairs);
 app.get("/siennaswap_pools/", secretSwapPoolsController.getSecretSwapPools);
 
 app.get("/signer_health/", signerHealthController.getSignerHealth);
 
-app.get("/proof/eth/:addr", claimsController.getEthProof);
-app.get("/proof/scrt/:addr", claimsController.getScrtProof);
+app.get("/proof/eth/:addr", claimsController.userAddrValidator, claimsController.getEthProof);
+app.get("/proof/scrt/:addr", claimsController.userAddrValidator, claimsController.getScrtProof);
 //app.get("/sushi_pool", secretSwapPairsController.getSushiPool);
 
 
