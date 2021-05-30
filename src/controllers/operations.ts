@@ -18,8 +18,8 @@ export const getOperation = async (req: Request, res: Response) => {
     }
     let swap: SwapDocument;
     if (operation.swap) {
-        swap = await Swap.findById(operation.swap);
-        if (swap.status !== operation.status) {
+        swap = await Swap.findOne({_id: operation.swap, status: {$ne: operation.status}});
+        if (swap) {
             operation.status = swap.status;
             await operation.save();
         }
