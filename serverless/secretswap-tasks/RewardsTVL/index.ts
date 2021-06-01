@@ -5,6 +5,7 @@ import {AzureFunction, Context} from "@azure/functions";
 import {MongoClient} from "mongodb";
 import {CosmWasmClient, EnigmaUtils} from "secretjs";
 import fetch from "node-fetch";
+import Decimal from "decimal.js";
 
 const coinGeckoApi = "https://api.coingecko.com/api/v3/simple/price?";
 
@@ -100,8 +101,12 @@ const getLPPrice = async (queryClient: CosmWasmClient, contractAddress: string, 
     const totalBalance = (await queryClient.queryContractSmart(token.dst_address, querySnip20Balance(pair.contract_addr, `${process.env["viewingKeySwapContract"]}`)));
     context.log(`total balance: ${JSON.stringify(totalBalance)}`);
 
-    return String((Number(tokenPrice) * Number(totalBalance.balance.amount) * 2 / Number(tokenInfo.total_supply) /
-        10**(tokenInfo2.decimals - tokenInfo.decimals)));
+    return new Decimal(tokenPrice)
+        .mul(totalBalance.balance.amount)
+        .mul(2)
+        .div(tokenInfo.total_supply)
+        .div(Decimal.pow(10, Decimal.sub(tokenInfo2.decimals, tokenInfo.decimals)))
+        .toString();
 };
 
 

@@ -1,5 +1,6 @@
 import {AzureFunction, Context} from "@azure/functions";
 import {MongoClient} from "mongodb";
+import Decimal from "decimal.js";
 import {priceFromPoolInScrt} from "./utils";
 import {BroadcastMode, CosmWasmClient, Secp256k1Pen, SigningCosmWasmClient} from "secretjs";
 import fetch from "node-fetch";
@@ -88,7 +89,7 @@ class SecretSwapOracle implements PriceOracle {
                 context.log(`Got relative price: ${JSON.stringify(priceRelative)}`);
                 return {
                     symbol: symbol,
-                    price: String(priceScrt * priceRelative)
+                    price: Decimal.mul(priceScrt, priceRelative).toString()
                 };
 
             })).catch(
@@ -151,13 +152,13 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     for (const symbol of symbols) {
 
-        let total = 0;
+        let total = new Decimal(0);
         let length = 0;
         prices.forEach((priceOracleResponse: PriceResult[]) => {
 
             priceOracleResponse.forEach((price: PriceResult) => {
                 if (symbol === price.symbol){
-                    total += parseFloat(price.price);
+                    total = total.plus(price.price);
                     length++;
                 }
             });
@@ -165,7 +166,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         context.log(`${symbol} - ${total}:${length}`);
         averagePrices.push({
             symbol,
-            price: (total / length).toFixed(4),
+            price: total.div(length).toFixed(4),
         });
 
     }
