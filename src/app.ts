@@ -37,19 +37,17 @@ mongoose
     dbName: config.dbName,
     useNewUrlParser: true,
     useCreateIndex: true,
-    useUnifiedTopology: true,
     user: config.dbUser,
     pass: config.dbPass,
+  }, (err) => {
+    if (err) {
+      logger.error(
+        "MongoDB connection error. Please make sure MongoDB is running. " + err
+      );
+      process.exit();
+    }
   })
-  .then(() => {
-    /** ready to use. The `mongoose.connect()` promise resolves to undefined. */
-  })
-  .catch((err) => {
-    logger.error(
-      "MongoDB connection error. Please make sure MongoDB is running. " + err
-    );
-    process.exit();
-  });
+
 
 app.use(
   cors({
