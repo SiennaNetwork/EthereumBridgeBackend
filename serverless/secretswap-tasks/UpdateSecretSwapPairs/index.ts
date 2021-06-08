@@ -50,32 +50,29 @@ const timerTrigger: AzureFunction = async function (
     pairs = (
       await Promise.all(
         pairsAddressesNotInDb.map(async (addr) => {
-          const pair: any = {};
+
           const ammclient = new ExchangeContract(addr, signingCosmWasmClient);
           return ammclient.get_pair_info().then((pair_info) => {
-            pair.contract_addr = addr;
-            pair._id = addr;
-            pair.liquidity_token = pair_info.liquidity_token.address;
-            pair.token_code_hash = pair_info.liquidity_token.code_hash;
-            pair.asset_infos = Object.keys(pair_info.pair).map((key) => {
-              return {
-                token: {
-                  contract_addr: pair_info.pair[key].custom_token.contract_addr,
-                  token_code_hash: pair_info.pair[key].custom_token.token_code_hash,
-                }
-              };
-            });
-            return ammclient.get_factory_info();
-          }).then((factory_info) => {
-            pair.factory = {
-              address: factory_info.address,
-              code_hash: factory_info.code_hash
+            return {
+              _id: addr,
+              contract_addr: addr,
+              liquidity_token: pair_info.liquidity_token.address,
+              token_code_hash: pair_info.liquidity_token.code_hash,
+              factory: {
+                address: pair_info.factory.address,
+                code_hash: pair_info.factory.code_hash
+              },
+              asset0_volume: pair_info.amount_0,
+              asset1_volume: pair_info.amount_1,
+              asset_infos: Object.keys(pair_info.pair).map((key) => {
+                return {
+                  token: {
+                    contract_addr: pair_info.pair[key].custom_token.contract_addr,
+                    token_code_hash: pair_info.pair[key].custom_token.token_code_hash,
+                  }
+                };
+              })
             };
-            return ammclient.get_pool();
-          }).then((pool) => {
-            pair.asset0_volume = pool.amount_0;
-            pair.asset1_volume = pool.amount_1;
-            return pair;
           });
         })
       )

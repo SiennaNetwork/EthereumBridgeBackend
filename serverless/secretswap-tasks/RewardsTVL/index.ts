@@ -1,19 +1,24 @@
 /* eslint-disable @typescript-eslint/camelcase */
 /* eslint-disable camelcase */
 
-import {AzureFunction, Context} from "@azure/functions";
-import {MongoClient} from "mongodb";
-import {CosmWasmClient, EnigmaUtils, SigningCosmWasmClient} from "secretjs";
-import fetch from "node-fetch";
+import { AzureFunction, Context } from "@azure/functions";
+import { MongoClient } from "mongodb";
+import { CosmWasmClient, EnigmaUtils, SigningCosmWasmClient } from "secretjs";
 import { RewardsContract } from "amm-types/dist/lib/contract";
 
-const coinGeckoApi = "https://api.coingecko.com/api/v3/simple/price?";
+//const coinGeckoApi = "https://api.coingecko.com/api/v3/simple/price?";
+//const futureBlock = process.env["futureBlock"] || 10_000_000;
 
-const futureBlock = process.env["futureBlock"] || 10_000_000;
+//const MASTER_CONTRACT = process.env["masterStakingContract"] || "secret13hqxweum28nj0c53nnvrpd23ygguhteqggf852";
+
 const LPPrefix = "LP-";
-const MASTER_CONTRACT = process.env["masterStakingContract"] || "secret13hqxweum28nj0c53nnvrpd23ygguhteqggf852";
+const secretNodeURL = process.env["secretNodeURL"];
 
-const SIENNA_REWARDS_CONTRACT = "xxxxx"; // TODO CHANGE TO ENV
+const viewingKeySwapContract = process.env["viewingKeySwapContract"];
+const SIENNA_REWARDS_CONTRACT = process.env["SiennaRewardsContract"];
+
+const mongodbUrl = process.env["mongodbUrl"];
+const mongodbName = process.env["mongodbName"];
 
 
 function getToken(tokens: any[], symbol: string) {
@@ -83,11 +88,11 @@ const getLPPrice = async (queryClient: CosmWasmClient, contractAddress: string, 
     const tokenInfo2 = (await queryClient.queryContractSmart(token.dst_address, queryTokenInfo())).token_info;
     context.log(`total tokens: ${JSON.stringify(tokenInfo2)}`);
 
-    const totalBalance = (await queryClient.queryContractSmart(token.dst_address, querySnip20Balance(pair.contract_addr, `${process.env["viewingKeySwapContract"]}`)));
+    const totalBalance = (await queryClient.queryContractSmart(token.dst_address, querySnip20Balance(pair.contract_addr, `${viewingKeySwapContract}`)));
     context.log(`total balance: ${JSON.stringify(totalBalance)}`);
 
     return String((Number(tokenPrice) * Number(totalBalance.balance.amount) * 2 / Number(tokenInfo.total_supply) /
-        10**(tokenInfo2.decimals - tokenInfo.decimals)));
+        10 ** (tokenInfo2.decimals - tokenInfo.decimals)));
 };
 
 
@@ -110,14 +115,14 @@ const getPriceForSymbol = async (queryClient: CosmWasmClient, contractAddress: s
 
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
-    const client: MongoClient = await MongoClient.connect(`${process.env["mongodbUrl"]}`,
+    const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`,
         { useUnifiedTopology: true, useNewUrlParser: true }).catch(
-        (err: any) => {
-            context.log(err);
-            throw new Error("Failed to connect to database");
-        }
-    );
-    const db = await client.db(`${process.env["mongodbName"]}`);
+            (err: any) => {
+                context.log(err);
+                throw new Error("Failed to connect to database");
+            }
+        );
+    const db = await client.db(`${mongodbName}`);
     const pools: RewardPoolData[] = await db.collection("rewards_data").find({}).toArray().catch(
         (err: any) => {
             context.log(err);
@@ -140,8 +145,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     );
 
     const seed = EnigmaUtils.GenerateNewSeed();
-    const queryClient = new CosmWasmClient(`${process.env["secretNodeURL"]}`, seed);
-    const signingCosmWasmClient = new SigningCosmWasmClient(`${process.env["secretNodeURL"]}`, null, null);
+    const queryClient = new CosmWasmClient(secretNodeURL, seed);
+    const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, null, null);
 
     await Promise.all(
         pools.map(async pool => {
@@ -154,42 +159,43 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
             const rewardTokenPrice = await getPriceForSymbol(queryClient, pool.rewards_token.address, pool.rewards_token.symbol, tokens, pairs);
             context.log(`rewards token price ${rewardTokenPrice}`);
-            
+
+            /* No viewing key, no LP Price
             const incTokenPrice = await getPriceForSymbol(queryClient, incTokenAddr, pool.inc_token.symbol, tokens, pairs, context);
             context.log(`inc token price ${incTokenPrice}`);
-
+            */
             await db.collection("rewards_data").updateOne({ "pool_address": poolAddr },
                 {
                     $set: {
                         lp_token_address: thePool.lp_token.address,
                         share: thePool.share,
                         total_locked: thePool.size,
-                        "inc_token.price": incTokenPrice,
+                        //"inc_token.price": incTokenPrice,
                         "rewards_token.price": rewardTokenPrice
                     }
                 });
-            
 
-                // const [incTokenPrice, rewardTokenPrice] = await Promise.all([
-                // (await fetch(coinGeckoApi + new URLSearchParams({
-                //         vs_currencies: "usd",
-                //         ids: pool.inc_token.name
-                //     }))).json(),
-                //     (await fetch(coinGeckoApi + new URLSearchParams({
-                //         vs_currencies: "usd",
-                //         ids: pool.rewards_token.name
-                //     }))).json()
-                // ]);
-                // await db.collection("rewards_data").updateOne({ "pool_address": poolAddr },
-                //     {
-                //         $set: {
-                //             total_locked: thePool.size,
-                //             // pending_rewards: rewardsBalance.reward_pool_balance.balance,
-                //             // deadline: deadline.end_height.height,
-                //             "inc_token.price": incTokenPrice[pool.inc_token.name].usd,
-                //             "rewards_token.price": rewardTokenPrice[pool.rewards_token.name].usd
-                //         }
-                //     });
+
+            // const [incTokenPrice, rewardTokenPrice] = await Promise.all([
+            // (await fetch(coinGeckoApi + new URLSearchParams({
+            //         vs_currencies: "usd",
+            //         ids: pool.inc_token.name
+            //     }))).json(),
+            //     (await fetch(coinGeckoApi + new URLSearchParams({
+            //         vs_currencies: "usd",
+            //         ids: pool.rewards_token.name
+            //     }))).json()
+            // ]);
+            // await db.collection("rewards_data").updateOne({ "pool_address": poolAddr },
+            //     {
+            //         $set: {
+            //             total_locked: thePool.size,
+            //             // pending_rewards: rewardsBalance.reward_pool_balance.balance,
+            //             // deadline: deadline.end_height.height,
+            //             "inc_token.price": incTokenPrice[pool.inc_token.name].usd,
+            //             "rewards_token.price": rewardTokenPrice[pool.rewards_token.name].usd
+            //         }
+            //     });
 
         })
     ).catch(
