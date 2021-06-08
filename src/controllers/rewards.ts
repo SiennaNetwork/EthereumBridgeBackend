@@ -1,6 +1,8 @@
 import {Request, Response} from "express";
-import { RewardsDocument, Rewards } from "../models/Rewards";
+import {checkSchema} from "express-validator";
+import {RewardsDocument, Rewards} from "../models/Rewards";
 import Cache from "../util/cache";
+import validate from "../util/validate";
 
 const cache = Cache.getInstance();
 
@@ -18,13 +20,25 @@ export const getRewardPools = async (req: Request, res: Response) => {
 
 };
 
-export const getRewardPool = async (req: Request, res: Response) => {
-    const lpTokenAddress = req.params.lp_token_address;
+export const getPoolValidator = validate(checkSchema({
+    pool: {
+        in: ["params"],
+        isString: { 
+            errorMessage: "Pool address must be a string"
+        },
+        trim: true,
+    }
+}));
+
+export const getPool = async (req: Request, res: Response) => {
+    const poolAddr = req.params.pool;
     // eslint-disable-next-line @typescript-eslint/camelcase
-    const pool: RewardsDocument = await cache.get(lpTokenAddress, async () => Rewards.findOne({lp_token_address: lpTokenAddress}, {_id: false}));
+    const pool: RewardsDocument = await cache.get(poolAddr, async () => Rewards.findOne({pool_address: poolAddr}, {_id: false}));
 
     if (!pool) {
         res.status(404);
+        res.send("Not found");
+        return;
     } else {
         try {
             res.json( { pool: pool });
