@@ -4,7 +4,7 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import { CosmWasmClient, EnigmaUtils, SigningCosmWasmClient } from "secretjs";
-import { RewardsContract } from "amm-types/dist/lib/contract";
+import { RewardsContract, Snip20Contract } from "amm-types/dist/lib/contract";
 
 //const coinGeckoApi = "https://api.coingecko.com/api/v3/simple/price?";
 //const futureBlock = process.env["futureBlock"] || 10_000_000;
@@ -14,7 +14,7 @@ import { RewardsContract } from "amm-types/dist/lib/contract";
 const LPPrefix = "LP-";
 const secretNodeURL = process.env["secretNodeURL"];
 
-const viewingKeySwapContract = process.env["viewingKeySwapContract"];
+//const viewingKeySwapContract = process.env["viewingKeySwapContract"];
 const SIENNA_REWARDS_CONTRACT = process.env["SiennaRewardsContract"];
 
 const mongodbUrl = process.env["mongodbUrl"];
@@ -61,7 +61,7 @@ function querySnip20Balance(address: string, key: string) {
     };
 }
 
-const getLPPrice = async (queryClient: CosmWasmClient, contractAddress: string, symbol: string, tokens: any[], pairs: any[], context?: any): Promise<string> => {
+const getLPPrice = async (queryClient: CosmWasmClient, contractAddress: string, symbol: string, tokens: any[], pairs: any[], context?: any, signingCosmWasmClient?: SigningCosmWasmClient): Promise<string> => {
     const [prefix, s1, s2] = symbol.split("-");
 
     const pair = getPair(pairs, contractAddress);
@@ -88,19 +88,22 @@ const getLPPrice = async (queryClient: CosmWasmClient, contractAddress: string, 
     const tokenInfo2 = (await queryClient.queryContractSmart(token.dst_address, queryTokenInfo())).token_info;
     context.log(`total tokens: ${JSON.stringify(tokenInfo2)}`);
 
-    const totalBalance = (await queryClient.queryContractSmart(token.dst_address, querySnip20Balance(pair.contract_addr, `${viewingKeySwapContract}`)));
-    context.log(`total balance: ${JSON.stringify(totalBalance)}`);
+    /* const totalBalance = (await queryClient.queryContractSmart(token.dst_address, querySnip20Balance(pair.contract_addr, `${viewingKeySwapContract}`)));
+     context.log(`total balance: ${JSON.stringify(totalBalance)}`);*/
 
-    return String((Number(tokenPrice) * Number(totalBalance.balance.amount) * 2 / Number(tokenInfo.total_supply) /
+    const snip20Contract = new Snip20Contract(token.dst_address, signingCosmWasmClient, queryClient);
+    const totalBalance = await snip20Contract.get_token_info();
+    
+    return String((Number(tokenPrice) * Number(totalBalance.total_supply) * 2 / Number(tokenInfo.total_supply) /
         10 ** (tokenInfo2.decimals - tokenInfo.decimals)));
 };
 
 
 
-const getPriceForSymbol = async (queryClient: CosmWasmClient, contractAddress: string, symbol: string, tokens: any[], pairs: any[], context?: any): Promise<string> => {
+const getPriceForSymbol = async (queryClient: CosmWasmClient, contractAddress: string, symbol: string, tokens: any[], pairs: any[], context?: any, signingCosmWasmClient?: SigningCosmWasmClient): Promise<string> => {
 
     if (symbol.startsWith(LPPrefix)) {
-        return await getLPPrice(queryClient, contractAddress, symbol, tokens, pairs, context);
+        return await getLPPrice(queryClient, contractAddress, symbol, tokens, pairs, context, signingCosmWasmClient);
     } else {
         const price = getToken(tokens, symbol).price;
         if (price) {
@@ -160,10 +163,9 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             const rewardTokenPrice = await getPriceForSymbol(queryClient, pool.rewards_token.address, pool.rewards_token.symbol, tokens, pairs);
             context.log(`rewards token price ${rewardTokenPrice}`);
 
-            /* No viewing key, no LP Price
-            const incTokenPrice = await getPriceForSymbol(queryClient, incTokenAddr, pool.inc_token.symbol, tokens, pairs, context);
+            const incTokenPrice = await getPriceForSymbol(queryClient, incTokenAddr, pool.inc_token.symbol, tokens, pairs, context, signingCosmWasmClient);
             context.log(`inc token price ${incTokenPrice}`);
-            */
+
             await db.collection("rewards_data").updateOne({ "pool_address": poolAddr },
                 {
                     $set: {
