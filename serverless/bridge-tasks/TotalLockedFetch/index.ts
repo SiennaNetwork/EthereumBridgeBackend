@@ -150,7 +150,12 @@ const ethPrice = async (): Promise<string> => {
         ids: "ethereum",
         // eslint-disable-next-line @typescript-eslint/camelcase
         vs_currencies: "USD"
-    }));
+    })).then((response) => {
+        if (response.ok) {
+            return response;
+        }
+        throw new Error(`Network response was not ok. Status: ${response.status}`);
+    });
     return (await price.json())["ethereum"].usd
 };
 

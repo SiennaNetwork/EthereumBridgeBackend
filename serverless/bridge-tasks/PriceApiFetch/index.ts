@@ -39,10 +39,22 @@ class ConstantPriceOracle implements PriceOracle {
 
 class BinancePriceOracle implements PriceOracle {
     async getPrices(symbols: string[]): Promise<PriceResult[]> {
-
-        const priceBTC = await(await fetch(binanceUrl + new URLSearchParams({
-            symbol: "BTCUSDT",
-        }))).json();
+        let priceBTC;
+        try {
+            priceBTC = await(
+                await fetch(binanceUrl + new URLSearchParams({
+                    symbol: "BTCUSDT",
+                })).then((response) => {
+                    if (response.ok) {
+                        return response;
+                    }
+                    throw new Error(`Network response was not ok. Status: ${response.status}`);
+                })
+            ).json();
+        } catch(err) {
+            throw new Error(`Binance oracle failed to fetch price BTC: ${err}`);
+        }
+        
 
         return Promise.all<PriceResult>(
             symbols.map(async (symbol): Promise<PriceResult> => {
@@ -55,14 +67,21 @@ class BinancePriceOracle implements PriceOracle {
                     return {symbol: "BTC", price: priceBTC.price};
                 }
 
-                const priceRelative = await fetch(binanceUrl + new URLSearchParams({
-                    symbol: `${symbol}BTC`,
-                })).catch(
-                    (err) => {
-                        //console.log(`symbol doesn't exist: ${err}`);
-                        return undefined;
+                let priceRelative;
+                try {
+                    priceRelative = await fetch(binanceUrl + new URLSearchParams({
+                        symbol: `${symbol}BTC`,
+                    }));
+
+                    if (!priceRelative.ok) {
+                        throw new Error(`Network response was not ok. Status: ${priceRelative.status}`);
                     }
-                );
+                } catch {
+                    return {
+                        symbol,
+                        price: undefined
+                    };
+                }
 
                 const resultRelative = await priceRelative.json();
 
@@ -151,18 +170,23 @@ class CoinGeckoOracle implements PriceOracle {
                     };
                 }
 
-                const priceRelative = await fetch(coinGeckoUrl + new URLSearchParams({
-                    ids: coinGeckoID,
-                    // eslint-disable-next-line @typescript-eslint/camelcase
-                    vs_currencies: "USD"
-                })).catch(
-                    (_) => {
-                        return {
-                            symbol,
-                            price: undefined
-                        };
+                let priceRelative;
+                try {
+                    priceRelative = await fetch(coinGeckoUrl + new URLSearchParams({
+                        ids: coinGeckoID,
+                        // eslint-disable-next-line @typescript-eslint/camelcase
+                        vs_currencies: "USD"
+                    }));
+
+                    if (!priceRelative.ok) {
+                        throw new Error(`Network response was not ok. Status: ${priceRelative.status}`);
                     }
-                );
+                } catch {
+                    return {
+                        symbol,
+                        price: undefined
+                    };
+                }
 
                 const asJson = await priceRelative.json();
                 try {

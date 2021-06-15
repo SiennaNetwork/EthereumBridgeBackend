@@ -14,11 +14,17 @@ interface healthStatus {
 
 const timerTrigger: AzureFunction = async function (_: Context, __: any): Promise<void> {
 
-    const healthStatus: healthStatus = await(await fetch(bridgeUrl).catch(
-        (_) => {
-            throw new Error("Failed to get health status - is service running?");
-        }
-    )).json();
+    const healthStatus: healthStatus = await(
+        await fetch(bridgeUrl)
+            .then((response) => {
+                if (response.ok) {
+                    return response;
+                }
+                throw new Error(`Network response was not ok. Status: ${response.status}`);
+            }).catch((_) => {
+                throw new Error("Failed to get health status - is service running?");
+            })
+    ).json();
 
     if (healthStatus.overall !== "pass")
     {
