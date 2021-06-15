@@ -26,10 +26,11 @@ const timerTrigger: AzureFunction = async function (
   const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, null, null);
 
   const start = Date.now();
+
   await Promise.all(
     pairs.map((pairAddress) => {
       const ammclient = new ExchangeContract(pairAddress, signingCosmWasmClient);
-      return ammclient.get_pool().then((pool_info) => {
+      return ammclient.get_pair_info().then((pool_info) => {
         return client
           .db(mongodbName)
           .collection("secretswap_pools")
@@ -48,14 +49,14 @@ const timerTrigger: AzureFunction = async function (
                         }
                       }
                     }
-                  })
+                  }),
+                  total_share: pool_info.total_liquidity
                 }
               }
             },
             { upsert: true }
           )
-      }).then((res) => { })
-        .catch((error) => {
+      }).catch((error) => {
           context.log(error);
         })
     })

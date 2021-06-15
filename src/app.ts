@@ -21,6 +21,7 @@ import * as secretSwapPairsController from "./controllers/secretswap_pairs";
 import * as secretSwapPoolsController from "./controllers/secretswap_pools";
 import * as signerHealthController from "./controllers/signer_health";
 import * as claimsController from "./controllers/claims";
+import * as cashbackController from "./controllers/cashback_stats";
 import config from "./util/config";
 
 // import Agenda from "agenda";
@@ -37,19 +38,17 @@ mongoose
     dbName: config.dbName,
     useNewUrlParser: true,
     useCreateIndex: true,
-    useUnifiedTopology: true,
     user: config.dbUser,
     pass: config.dbPass,
+  }, (err) => {
+    if (err) {
+      logger.error(
+        "MongoDB connection error. Please make sure MongoDB is running. " + err
+      );
+      process.exit();
+    }
   })
-  .then(() => {
-    /** ready to use. The `mongoose.connect()` promise resolves to undefined. */
-  })
-  .catch((err) => {
-    logger.error(
-      "MongoDB connection error. Please make sure MongoDB is running. " + err
-    );
-    process.exit();
-  });
+
 
 app.use(
   cors({
@@ -111,5 +110,10 @@ app.get("/proof/eth/:addr", claimsController.userAddrValidator, claimsController
 app.get("/proof/scrt/:addr", claimsController.userAddrValidator, claimsController.getScrtProof);
 //app.get("/sushi_pool", secretSwapPairsController.getSushiPool);
 
+app.get("/cashback/network_avg_rate/", cashbackController.getCashbackRate);
+app.post(
+  "/cashback/network_avg_rate/:rate",
+  cashbackController.newCashbackBurn
+);
 
 export default app;
