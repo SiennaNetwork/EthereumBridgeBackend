@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "amm-types": "1.0.9",
+    "decimal.js": "10.2.1",
     "mongodb": "^3.6.6",
     "node-fetch": "^2.6.1",
     "secretjs": "^0.11.0"
