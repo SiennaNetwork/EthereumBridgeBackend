@@ -1,6 +1,7 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import fetch from "node-fetch";
+import Decimal from "decimal.js";
 
 const binanceUrl = "https://api.binance.com/api/v3/ticker/price?";
 const coinGeckoUrl = "https://api.coingecko.com/api/v3/simple/price?";
@@ -10,7 +11,7 @@ interface PriceOracle {
 }
 
 const priceRelativeToUSD = (priceBTC: string, priceRelative: string): string => {
-    return String(parseFloat(priceBTC) * parseFloat(priceRelative));
+    return Decimal.mul(priceBTC, priceRelative).toString();
 };
 
 class ConstantPriceOracle implements PriceOracle {
@@ -233,13 +234,13 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     for (const symbol of symbols) {
 
-        let total = 0;
+        let total = new Decimal(0);
         let length = 0;
         prices.forEach((priceOracleResponse: PriceResult[]) => {
 
             priceOracleResponse.forEach((price: PriceResult) => {
                 if (symbol === price.symbol){
-                    total += parseFloat(price.price);
+                    total = total.plus(price.price);
                     length++;
                 }
             });
@@ -247,7 +248,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         //context.log(`${symbol} - ${total}:${length}`);
         average_prices.push({
             symbol,
-            price: (total / length).toFixed(4),
+            price: total.div(length).toFixed(4),
         });
 
     }

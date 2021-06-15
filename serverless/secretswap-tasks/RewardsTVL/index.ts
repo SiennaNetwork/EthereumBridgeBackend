@@ -4,6 +4,7 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import { CosmWasmClient, EnigmaUtils, SigningCosmWasmClient } from "secretjs";
+import Decimal from "decimal.js";
 import { RewardsContract, Snip20Contract } from "amm-types/dist/lib/contract";
 
 //const coinGeckoApi = "https://api.coingecko.com/api/v3/simple/price?";
@@ -94,8 +95,12 @@ const getLPPrice = async (queryClient: CosmWasmClient, contractAddress: string, 
     const snip20Contract = new Snip20Contract(token.dst_address, signingCosmWasmClient, queryClient);
     const totalBalance = await snip20Contract.get_token_info();
     
-    return String((Number(tokenPrice) * Number(totalBalance.total_supply) * 2 / Number(tokenInfo.total_supply) /
-        10 ** (tokenInfo2.decimals - tokenInfo.decimals)));
+    return new Decimal(tokenPrice)
+        .mul(totalBalance.total_supply)
+        .mul(2)
+        .div(tokenInfo.total_supply)
+        .div(Decimal.pow(10, Decimal.sub(tokenInfo2.decimals, tokenInfo.decimals)))
+        .toString();
 };
 
 
