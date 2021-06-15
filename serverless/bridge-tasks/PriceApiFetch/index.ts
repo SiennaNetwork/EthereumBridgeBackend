@@ -16,8 +16,8 @@ const priceRelativeToUSD = (priceBTC: string, priceRelative: string): string => 
 class ConstantPriceOracle implements PriceOracle {
 
     priceMap = {
-        SIENNA: "6.0",
-        WSIENNA: "6.0"
+        // SIENNA: "6.0",
+        // WSIENNA: "6.0"
     }
 
     async getPrices(symbols: string[]): Promise<PriceResult[]> {
@@ -102,6 +102,7 @@ class CoinGeckoOracle implements PriceOracle {
         "SCRT": "secret",
         "SSCRT": "secret",
         "ETH": "ethereum",
+        "bETH": "ethereum",
         "OCEAN": "ocean-protocol",
         "USDT": "tether",
         "YFI": "yearn-finance",
@@ -134,6 +135,21 @@ class CoinGeckoOracle implements PriceOracle {
         "MATIC": "matic-network",
         "BUSD": "binance-usd",
         "BNB": "binancecoin",
+        "ADA": "cardano",
+        "XRP": "ripple",
+        "DOGE": "dogecoin",
+        "DOT": "polkadot",
+        "BCH": "bitcoin-cash",
+        "LTC": "litecoin",
+        "TRX": "tron",
+        "CAKE": "pancakeswap-token",
+        "BAKE": "bakerytoken",
+        "VNX": "venus",
+        "LINA": "linear",
+        "FINE": "refinable",
+        "BUNNY": "pancake-bunny",
+        "SIENNA": "sienna-erc20",
+        "WSIENNA": "sienna-erc20"
     }
 
     symbolToID = symbol => {
@@ -221,9 +237,10 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     let symbols;
 
+    // the split '(' handles the (BSC) tokens
     try {
          symbols = tokens
-             .map(t => t.display_props.symbol)
+             .map(t => t.display_props.symbol.split('(')[0])
              .filter(t => !t.startsWith(uniLPPrefix))
              .filter(t => !t.startsWith("SEFI"));
     } catch (e) {
@@ -264,7 +281,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     await Promise.all(
         average_prices.map(async p => {
-            await db.collection("token_pairing").updateOne({"display_props.symbol": p.symbol}, { $set: { price: p.price }});
+            await db.collection("token_pairing").updateOne({"display_props.symbol": new RegExp(p.symbol, 'i')}, { $set: { price: p.price }});
         })).catch(
         (err) => {
             context.log(err);

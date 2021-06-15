@@ -1,10 +1,22 @@
 import {Request, Response} from "express";
+import {checkSchema} from "express-validator";
 import {Operation, OperationDocument} from "../models/Operation";
 import {Swap, SwapDocument, SwapStatus} from "../models/Swap";
 import logger from "../util/logger";
+import validate from "../util/validate";
 import {check, param, validationResult} from "express-validator";
 
 const hashValidator = /^[0-9a-zA-Z|]/g;
+
+export const getOperationValidator = validate(checkSchema({
+    operation: {
+        in: ["params"],
+        isUUID: { 
+            errorMessage: "Operation ID must be UUID"
+        },
+        trim: true,
+    }
+}));
 
 export const getOperation = async (req: Request, res: Response) => {
 
@@ -18,8 +30,8 @@ export const getOperation = async (req: Request, res: Response) => {
     }
     let swap: SwapDocument;
     if (operation.swap) {
-        swap = await Swap.findById(operation.swap);
-        if (swap.status !== operation.status) {
+        swap = await Swap.findOne({_id: operation.swap, status: {$ne: operation.status}});
+        if (swap) {
             operation.status = swap.status;
             await operation.save();
         }
@@ -45,8 +57,14 @@ export const getOperation = async (req: Request, res: Response) => {
 export const newOperation = async (req: Request, res: Response) => {
 
     await check("id", "Generated ID cannot be empty").not().isEmpty().run(req);
-    await check("id", "Generated ID must be UUID").isUUID().run(req);
+    await check("id", "Generated ID must be UUID")
+        .trim()
+        .isUUID()
+        .run(req);
     await check("transactionHash", "TransactionHash malformed")
+        .isString()
+        .withMessage("TransactionHash must be a string")
+        .trim()
         .custom(field => field.match(hashValidator))
         .isLength({min: 1, max: 512})
         .optional()
@@ -74,8 +92,14 @@ export const newOperation = async (req: Request, res: Response) => {
 };
 
 export const updateOperation = async (req: Request, res: Response) => {
-    await param("operation", "Operation ID must be UUID").isUUID().run(req);
+    await param("operation", "Operation ID must be UUID")
+        .trim()
+        .isUUID()
+        .run(req);
     await check("transactionHash", "TransactionHash malformed")
+        .isString()
+        .withMessage("TransactionHash must be a string")
+        .trim()
         .custom(field => field.match(hashValidator))
         .isLength({min: 1, max: 512})
         .run(req);
