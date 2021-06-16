@@ -39,7 +39,7 @@ interface Token {
 }
 
 interface RewardPoolData {
-    pool_address: string; // the LP token 
+    lp_token_address: string; // the LP token 
     inc_token: Token;
     rewards_token: Token;
     total_locked: string;
@@ -93,14 +93,18 @@ const getLPPrice = async (queryClient: CosmWasmClient, contractAddress: string, 
      context.log(`total balance: ${JSON.stringify(totalBalance)}`);*/
 
     const snip20Contract = new Snip20Contract(token.dst_address, signingCosmWasmClient, queryClient);
-    const totalBalance = await snip20Contract.get_token_info();
-    
-    return new Decimal(tokenPrice)
-        .mul(totalBalance.total_supply)
-        .mul(2)
-        .div(tokenInfo.total_supply)
-        .div(Decimal.pow(10, Decimal.sub(tokenInfo2.decimals, tokenInfo.decimals)))
-        .toString();
+    const totalBalance: any = await snip20Contract.get_token_info();
+
+    try {
+        return new Decimal(tokenPrice)
+            .mul(totalBalance.token_info.total_supply)
+            .mul(2)
+            .div(tokenInfo.total_supply)
+            .div(Decimal.pow(10, Decimal.sub(tokenInfo2.decimals, tokenInfo.decimals)))
+            .toString();
+    } catch (e) {
+        return "NaN";
+    }
 };
 
 
@@ -158,7 +162,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     await Promise.all(
         pools.map(async pool => {
-            const poolAddr = pool.pool_address;
+            const poolAddr = pool.lp_token_address;
             const incTokenAddr = pool.inc_token.address;
 
             const rewardsContract = new RewardsContract(SIENNA_REWARDS_CONTRACT, signingCosmWasmClient, queryClient);
@@ -171,7 +175,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             const incTokenPrice = await getPriceForSymbol(queryClient, incTokenAddr, pool.inc_token.symbol, tokens, pairs, context, signingCosmWasmClient);
             context.log(`inc token price ${incTokenPrice}`);
 
-            await db.collection("rewards_data").updateOne({ "pool_address": poolAddr },
+            await db.collection("rewards_data").updateOne({ "lp_token_address": poolAddr },
                 {
                     $set: {
                         lp_token_address: thePool.lp_token.address,
