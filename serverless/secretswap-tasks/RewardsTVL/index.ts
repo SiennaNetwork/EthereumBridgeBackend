@@ -93,11 +93,11 @@ const getLPPrice = async (queryClient: CosmWasmClient, contractAddress: string, 
      context.log(`total balance: ${JSON.stringify(totalBalance)}`);*/
 
     const snip20Contract = new Snip20Contract(token.dst_address, signingCosmWasmClient, queryClient);
-    const totalBalance: any = await snip20Contract.get_token_info();
+    const totalBalance = await snip20Contract.get_token_info();
 
     try {
         return new Decimal(tokenPrice)
-            .mul(totalBalance.token_info.total_supply)
+            .mul(totalBalance.total_supply)
             .mul(2)
             .div(tokenInfo.total_supply)
             .div(Decimal.pow(10, Decimal.sub(tokenInfo2.decimals, tokenInfo.decimals)))

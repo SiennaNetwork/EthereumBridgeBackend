@@ -18,6 +18,13 @@ export interface RewardsDocument extends mongoose.Document {
 
 
 export const rewardsSchema = new mongoose.Schema({
+
+    /**
+    * Creating the new rewards as soon as we have the new pair's LP token addresses. The "share" is how many rewards are allocated to that pair i.e we have 500 SIENNA per day for this one. 
+    * The "total_locked" has a different name in the actual contract, but that should be how many LP tokens are locked by all the participants in the pool. So if me and you locked 200 LP tokens each, then total_locked = 400.
+    */
+
+
     lp_token_address: String,
    
     /**
