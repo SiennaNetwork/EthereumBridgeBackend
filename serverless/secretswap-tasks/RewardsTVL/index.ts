@@ -213,9 +213,16 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         err => {
             context.log(`Failed update rewards stats: ${err}`);
         }
-    );
+    )
     await client.close();
-
+    //set response in case of code being called from a http trigger
+    context.res = {
+        status: 200, /* Defaults to 200 */
+        headers: {
+            "content-type": "application/json"
+        },
+        body: { triggred: true }
+    };
 };
 
 
