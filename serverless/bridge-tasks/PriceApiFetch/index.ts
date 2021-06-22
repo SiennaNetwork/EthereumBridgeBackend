@@ -150,7 +150,8 @@ class CoinGeckoOracle implements PriceOracle {
         "FINE": "refinable",
         "BUNNY": "pancake-bunny",
         "SIENNA": "sienna-erc20",
-        "WSIENNA": "sienna-erc20"
+        "WSIENNA": "sienna-erc20",
+        "STEST": "sienna-erc20"
     }
 
     symbolToID = symbol => {
