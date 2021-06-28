@@ -5,7 +5,7 @@ import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import { CosmWasmClient, EnigmaUtils, SigningCosmWasmClient } from "secretjs";
 import Decimal from "decimal.js";
-import { RewardsContract, Snip20Contract } from "amm-types/dist/lib/contract";
+import { RewardsContract, Snip20Contract, RewardsFactoryContract } from "amm-types/dist/lib/contract";
 
 //const coinGeckoApi = "https://api.coingecko.com/api/v3/simple/price?";
 //const futureBlock = process.env["futureBlock"] || 10_000_000;
@@ -160,14 +160,15 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const queryClient = new CosmWasmClient(secretNodeURL, seed);
     const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, null, null);
 
+    const rewardsContract = new RewardsFactoryContract(SIENNA_REWARDS_CONTRACT, signingCosmWasmClient, queryClient);
+    const fetchedPools = await rewardsContract.get_pools();
+
     await Promise.all(
         pools.map(async pool => {
             const poolAddr = pool.lp_token_address;
             const incTokenAddr = pool.inc_token.address;
 
-            const rewardsContract = new RewardsContract(SIENNA_REWARDS_CONTRACT, signingCosmWasmClient, queryClient);
-            const fetchedPools = await rewardsContract.get_pools();
-            const thePool = fetchedPools.find(item => item.lp_token.address === incTokenAddr);
+            const thePool: any = fetchedPools.find(item => item.pool.lp_token.address === incTokenAddr);
 
             const rewardTokenPrice = await getPriceForSymbol(queryClient, pool.rewards_token.address, pool.rewards_token.symbol, tokens, pairs);
             context.log(`rewards token price ${rewardTokenPrice}`);
@@ -178,6 +179,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             await db.collection("rewards_data").updateOne({ "lp_token_address": poolAddr },
                 {
                     $set: {
+                        rewards_contract: thePool.address,
                         lp_token_address: thePool.lp_token.address,
                         share: thePool.share,
                         total_locked: thePool.size,

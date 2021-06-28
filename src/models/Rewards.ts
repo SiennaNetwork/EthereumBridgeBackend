@@ -13,6 +13,10 @@ export interface RewardsDocument extends mongoose.Document {
      * Total amount locked by all participants.
      */
     total_locked: number;
+     /**
+     * The rewards contract address.
+     */
+    rewards_contract: string;
 }
 
 
@@ -26,16 +30,21 @@ export const rewardsSchema = new mongoose.Schema({
 
 
     lp_token_address: String,
-   
+
     /**
      * The reward amount allocated to this pool.
      */
     share: Number,
-   
+
     /**
      * Total amount locked by all participants.
      */
-    total_locked: Number
+    total_locked: Number,
+
+    /**
+     * The rewards contract address.
+     */
+    rewards_contract: String
 }, { collection: "rewards_data" });
 
 export const Rewards = mongoose.model<RewardsDocument>("rewards", rewardsSchema);
