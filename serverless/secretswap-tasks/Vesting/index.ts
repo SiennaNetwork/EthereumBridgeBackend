@@ -3,7 +3,7 @@ import { create_fee } from "amm-types/dist/lib/contract";
 import { SigningCosmWasmClient, Secp256k1Pen } from "secretjs";
 
 const secretNodeURL = process.env["secretNodeURL"];
-const vestingAddress = process.env["vestingAddress"];
+const RPTContractAddress = process.env["RPTContractAddress"];
 const mnemonic = process.env["mnemonic"];
 const sender_address = process.env["sender_address"];
 const vesting_fee_amount = process.env["vesting_fee_amount"] || "50000";
@@ -23,7 +23,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     while (call) {
         try {
-            await signingCosmWasmClient.execute(vestingAddress, { vest: {} }, undefined, undefined, fee);
+            await signingCosmWasmClient.execute(RPTContractAddress, { vest: {} }, undefined, undefined, fee);
             call = false;
         } catch (e) {
             context.log(e);
