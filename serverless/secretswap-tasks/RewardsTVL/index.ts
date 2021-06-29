@@ -3,23 +3,22 @@
 
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
-import { CosmWasmClient, EnigmaUtils, SigningCosmWasmClient } from "secretjs";
+import { CosmWasmClient, EnigmaUtils, SigningCosmWasmClient, Secp256k1Pen } from "secretjs";
 import Decimal from "decimal.js";
-import { RewardsContract, Snip20Contract, RewardsFactoryContract } from "amm-types/dist/lib/contract";
+import { Snip20Contract, RewardsFactoryContract } from "amm-types/dist/lib/contract";
+
 
 //const coinGeckoApi = "https://api.coingecko.com/api/v3/simple/price?";
 //const futureBlock = process.env["futureBlock"] || 10_000_000;
-
 //const MASTER_CONTRACT = process.env["masterStakingContract"] || "secret13hqxweum28nj0c53nnvrpd23ygguhteqggf852";
-
+//const viewingKeySwapContract = process.env["viewingKeySwapContract"];
 const LPPrefix = "LP-";
 const secretNodeURL = process.env["secretNodeURL"];
-
-//const viewingKeySwapContract = process.env["viewingKeySwapContract"];
 const SIENNA_REWARDS_CONTRACT = process.env["SiennaRewardsContract"];
-
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
+const mnemonic = process.env["mnemonic"];
+const sender_address = process.env["sender_address"];
 
 
 function getToken(tokens: any[], symbol: string) {
@@ -156,9 +155,12 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         }
     );
 
+
+    const pen = await Secp256k1Pen.fromMnemonic(mnemonic);
+
     const seed = EnigmaUtils.GenerateNewSeed();
     const queryClient = new CosmWasmClient(secretNodeURL, seed);
-    const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, null, null);
+    const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes));
 
     const rewardsContract = new RewardsFactoryContract(SIENNA_REWARDS_CONTRACT, signingCosmWasmClient, queryClient);
     const fetchedPools = await rewardsContract.get_pools();
@@ -215,7 +217,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         err => {
             context.log(`Failed update rewards stats: ${err}`);
         }
-    )
+    );
     await client.close();
     //set response in case of code being called from a http trigger
     context.res = {

@@ -1,11 +1,13 @@
 import { AzureFunction, Context } from "@azure/functions";
-import { SigningCosmWasmClient } from "secretjs";
+import { SigningCosmWasmClient, Secp256k1Pen } from "secretjs";
 import { MongoClient } from "mongodb";
 import { ExchangeContract } from 'amm-types/dist/lib/contract';
 
 const secretNodeURL: string = process.env["secretNodeURL2"];
 const mongodbName: string = process.env["mongodbName"];
 const mongodbUrl: string = process.env["mongodbUrl"];
+const mnemonic = process.env["mnemonic"];
+const sender_address = process.env["sender_address"];
 
 const timerTrigger: AzureFunction = async function (
   context: Context,
@@ -23,7 +25,9 @@ const timerTrigger: AzureFunction = async function (
     await client.db(mongodbName).collection("secretswap_pairs").find().toArray()
   ).map((p) => p._id);
 
-  const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, null, null);
+  const pen = await Secp256k1Pen.fromMnemonic(mnemonic);
+
+  const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes));
 
   const start = Date.now();
 
@@ -57,8 +61,8 @@ const timerTrigger: AzureFunction = async function (
             { upsert: true }
           )
       }).catch((error) => {
-          context.log(error);
-        })
+        context.log(error);
+      });
     })
   );
   await client.close();
