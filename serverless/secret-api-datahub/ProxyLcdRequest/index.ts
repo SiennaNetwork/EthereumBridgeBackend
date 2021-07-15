@@ -22,12 +22,19 @@ const httpTrigger: AzureFunction = async function (context: Context, req: HttpRe
         body: JSON.stringify(req.body),
     });
 
-    const respBody = await response.text();
+    if (response.ok) {
+        const respBody = await response.text();
 
-    context.res = {
-        status: response.status,
-        body: respBody,
-    };
+        context.res = {
+            status: response.status,
+            body: respBody,
+        };
+    } else {
+        context.res = {
+            status: 500,
+            body: "Something went wrong"
+        };
+    }
 
 };
 

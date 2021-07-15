@@ -1,0 +1,12 @@
+{
+    "bindings": [
+      {
+        "name": "myTimer",
+        "type": "timerTrigger",
+        "direction": "in",
+        "schedule": "30 53 14 * * *"
+      }
+    ],
+    "scriptFile": "../dist/Vesting/index.js"
+  }
+  

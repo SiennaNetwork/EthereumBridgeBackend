@@ -34,6 +34,6 @@ jobs:
       with:
         app-name: EthereumBridgeBackendTestnet
         slot-name: Production
-        publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_61C0D83DE5D14954BCD8573886F086AB }}
+        publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_E2456604224B491BB6E74DEAE62AF571 }}
         package: .
 

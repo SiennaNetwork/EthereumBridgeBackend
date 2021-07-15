@@ -3,22 +3,22 @@
 
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
-import { CosmWasmClient, EnigmaUtils, SigningCosmWasmClient } from "secretjs";
-import { RewardsContract, Snip20Contract } from "amm-types/dist/lib/contract";
+import { CosmWasmClient, EnigmaUtils, SigningCosmWasmClient, Secp256k1Pen } from "secretjs";
+import Decimal from "decimal.js";
+import { Snip20Contract, RewardsFactoryContract } from "amm-types/dist/lib/contract";
+
 
 //const coinGeckoApi = "https://api.coingecko.com/api/v3/simple/price?";
 //const futureBlock = process.env["futureBlock"] || 10_000_000;
-
 //const MASTER_CONTRACT = process.env["masterStakingContract"] || "secret13hqxweum28nj0c53nnvrpd23ygguhteqggf852";
-
+//const viewingKeySwapContract = process.env["viewingKeySwapContract"];
 const LPPrefix = "LP-";
 const secretNodeURL = process.env["secretNodeURL"];
-
-//const viewingKeySwapContract = process.env["viewingKeySwapContract"];
 const SIENNA_REWARDS_CONTRACT = process.env["SiennaRewardsContract"];
-
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
+const mnemonic = process.env["mnemonic"];
+const sender_address = process.env["sender_address"];
 
 
 function getToken(tokens: any[], symbol: string) {
@@ -38,7 +38,7 @@ interface Token {
 }
 
 interface RewardPoolData {
-    pool_address: string; // the LP token 
+    lp_token_address: string; // the LP token 
     inc_token: Token;
     rewards_token: Token;
     total_locked: string;
@@ -93,9 +93,17 @@ const getLPPrice = async (queryClient: CosmWasmClient, contractAddress: string, 
 
     const snip20Contract = new Snip20Contract(token.dst_address, signingCosmWasmClient, queryClient);
     const totalBalance = await snip20Contract.get_token_info();
-    
-    return String((Number(tokenPrice) * Number(totalBalance.total_supply) * 2 / Number(tokenInfo.total_supply) /
-        10 ** (tokenInfo2.decimals - tokenInfo.decimals)));
+
+    try {
+        return new Decimal(tokenPrice)
+            .mul(totalBalance.total_supply)
+            .mul(2)
+            .div(tokenInfo.total_supply)
+            .div(Decimal.pow(10, Decimal.sub(tokenInfo2.decimals, tokenInfo.decimals)))
+            .toString();
+    } catch (e) {
+        return "NaN";
+    }
 };
 
 
@@ -147,18 +155,22 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         }
     );
 
+
+    const pen = await Secp256k1Pen.fromMnemonic(mnemonic);
+
     const seed = EnigmaUtils.GenerateNewSeed();
     const queryClient = new CosmWasmClient(secretNodeURL, seed);
-    const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, null, null);
+    const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes));
+
+    const rewardsContract = new RewardsFactoryContract(SIENNA_REWARDS_CONTRACT, signingCosmWasmClient, queryClient);
+    const fetchedPools = await rewardsContract.get_pools();
 
     await Promise.all(
         pools.map(async pool => {
-            const poolAddr = pool.pool_address;
+            const poolAddr = pool.lp_token_address;
             const incTokenAddr = pool.inc_token.address;
 
-            const rewardsContract = new RewardsContract(SIENNA_REWARDS_CONTRACT, signingCosmWasmClient, queryClient);
-            const fetchedPools = await rewardsContract.get_pools();
-            const thePool = fetchedPools.find(item => item.lp_token.address === incTokenAddr);
+            const thePool: any = fetchedPools.find(item => item.pool.lp_token.address === incTokenAddr);
 
             const rewardTokenPrice = await getPriceForSymbol(queryClient, pool.rewards_token.address, pool.rewards_token.symbol, tokens, pairs);
             context.log(`rewards token price ${rewardTokenPrice}`);
@@ -166,9 +178,10 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             const incTokenPrice = await getPriceForSymbol(queryClient, incTokenAddr, pool.inc_token.symbol, tokens, pairs, context, signingCosmWasmClient);
             context.log(`inc token price ${incTokenPrice}`);
 
-            await db.collection("rewards_data").updateOne({ "pool_address": poolAddr },
+            await db.collection("rewards_data").updateOne({ "lp_token_address": poolAddr },
                 {
                     $set: {
+                        rewards_contract: thePool.address,
                         lp_token_address: thePool.lp_token.address,
                         share: thePool.share,
                         total_locked: thePool.size,
@@ -206,7 +219,14 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         }
     );
     await client.close();
-
+    //set response in case of code being called from a http trigger
+    context.res = {
+        status: 200, /* Defaults to 200 */
+        headers: {
+            "content-type": "application/json"
+        },
+        body: { triggred: true }
+    };
 };
 
 

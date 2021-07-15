@@ -1,6 +1,7 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import fetch from "node-fetch";
+import Decimal from "decimal.js";
 
 const binanceUrl = "https://api.binance.com/api/v3/ticker/price?";
 const coinGeckoUrl = "https://api.coingecko.com/api/v3/simple/price?";
@@ -10,7 +11,7 @@ interface PriceOracle {
 }
 
 const priceRelativeToUSD = (priceBTC: string, priceRelative: string): string => {
-    return String(parseFloat(priceBTC) * parseFloat(priceRelative));
+    return Decimal.mul(priceBTC, priceRelative).toString();
 };
 
 class ConstantPriceOracle implements PriceOracle {
@@ -38,10 +39,22 @@ class ConstantPriceOracle implements PriceOracle {
 
 class BinancePriceOracle implements PriceOracle {
     async getPrices(symbols: string[]): Promise<PriceResult[]> {
-
-        const priceBTC = await(await fetch(binanceUrl + new URLSearchParams({
-            symbol: "BTCUSDT",
-        }))).json();
+        let priceBTC;
+        try {
+            priceBTC = await(
+                await fetch(binanceUrl + new URLSearchParams({
+                    symbol: "BTCUSDT",
+                })).then((response) => {
+                    if (response.ok) {
+                        return response;
+                    }
+                    throw new Error(`Network response was not ok. Status: ${response.status}`);
+                })
+            ).json();
+        } catch(err) {
+            throw new Error(`Binance oracle failed to fetch price BTC: ${err}`);
+        }
+        
 
         return Promise.all<PriceResult>(
             symbols.map(async (symbol): Promise<PriceResult> => {
@@ -54,14 +67,21 @@ class BinancePriceOracle implements PriceOracle {
                     return {symbol: "BTC", price: priceBTC.price};
                 }
 
-                const priceRelative = await fetch(binanceUrl + new URLSearchParams({
-                    symbol: `${symbol}BTC`,
-                })).catch(
-                    (err) => {
-                        //console.log(`symbol doesn't exist: ${err}`);
-                        return undefined;
+                let priceRelative;
+                try {
+                    priceRelative = await fetch(binanceUrl + new URLSearchParams({
+                        symbol: `${symbol}BTC`,
+                    }));
+
+                    if (!priceRelative.ok) {
+                        throw new Error(`Network response was not ok. Status: ${priceRelative.status}`);
                     }
-                );
+                } catch {
+                    return {
+                        symbol,
+                        price: undefined
+                    };
+                }
 
                 const resultRelative = await priceRelative.json();
 
@@ -130,7 +150,8 @@ class CoinGeckoOracle implements PriceOracle {
         "FINE": "refinable",
         "BUNNY": "pancake-bunny",
         "SIENNA": "sienna-erc20",
-        "WSIENNA": "sienna-erc20"
+        "WSIENNA": "sienna-erc20",
+        "STEST": "sienna-erc20"
     }
 
     symbolToID = symbol => {
@@ -150,18 +171,23 @@ class CoinGeckoOracle implements PriceOracle {
                     };
                 }
 
-                const priceRelative = await fetch(coinGeckoUrl + new URLSearchParams({
-                    ids: coinGeckoID,
-                    // eslint-disable-next-line @typescript-eslint/camelcase
-                    vs_currencies: "USD"
-                })).catch(
-                    (_) => {
-                        return {
-                            symbol,
-                            price: undefined
-                        };
+                let priceRelative;
+                try {
+                    priceRelative = await fetch(coinGeckoUrl + new URLSearchParams({
+                        ids: coinGeckoID,
+                        // eslint-disable-next-line @typescript-eslint/camelcase
+                        vs_currencies: "USD"
+                    }));
+
+                    if (!priceRelative.ok) {
+                        throw new Error(`Network response was not ok. Status: ${priceRelative.status}`);
                     }
-                );
+                } catch {
+                    return {
+                        symbol,
+                        price: undefined
+                    };
+                }
 
                 const asJson = await priceRelative.json();
                 try {
@@ -233,13 +259,13 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     for (const symbol of symbols) {
 
-        let total = 0;
+        let total = new Decimal(0);
         let length = 0;
         prices.forEach((priceOracleResponse: PriceResult[]) => {
 
             priceOracleResponse.forEach((price: PriceResult) => {
                 if (symbol === price.symbol){
-                    total += parseFloat(price.price);
+                    total = total.plus(price.price);
                     length++;
                 }
             });
@@ -247,7 +273,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         //context.log(`${symbol} - ${total}:${length}`);
         average_prices.push({
             symbol,
-            price: (total / length).toFixed(4),
+            price: total.div(length).toFixed(4),
         });
 
     }
