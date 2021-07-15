@@ -21,6 +21,9 @@
     "**/coverage": true
   },
   "typescript.referencesCodeLens.enabled": true,
-  "appService.zipIgnorePattern": [".vscode{,/**}"],
+  "appService.zipIgnorePattern": [
+    ".vscode{,/**}",
+    "node_modules{,/**}"
+  ],
   "appService.deploySubpath": ""
 }

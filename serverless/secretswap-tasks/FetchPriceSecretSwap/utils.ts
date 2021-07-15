@@ -1,3 +1,4 @@
+import Decimal from "decimal.js";
 import {CosmWasmClient, SigningCosmWasmClient} from "secretjs";
 
 
@@ -99,5 +100,5 @@ export const priceFromPoolInScrt = async (secretjs: CosmWasmClient,
     // eslint-disable-next-line @typescript-eslint/camelcase
     const { return_amount } = await handleSimulation(secretjs, input, pair, context);
 
-    return Number(return_amount) / 1000000;
+    return Decimal.div(return_amount, 1000000).toNumber();
 };

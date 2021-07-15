@@ -2,6 +2,7 @@ import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import Web3 from "web3";
 import fetch from "node-fetch";
+import Decimal from "decimal.js";
 
 const supportedNetworks = ["ethereum", "binancesmartchain"]
 
@@ -149,7 +150,12 @@ const ethPrice = async (): Promise<string> => {
         ids: "ethereum",
         // eslint-disable-next-line @typescript-eslint/camelcase
         vs_currencies: "USD"
-    }));
+    })).then((response) => {
+        if (response.ok) {
+            return response;
+        }
+        throw new Error(`Network response was not ok. Status: ${response.status}`);
+    });
     return (await price.json())["ethereum"].usd
 };
 
@@ -160,10 +166,10 @@ const getUniPrice = async (address: string) => {
 
     const totalSupply = await contract.methods.totalSupply().call();
 
-    const priceETH = Number(await ethPrice());
+    const priceETH = await ethPrice();
     const res = await contract.methods.getReserves().call();
 
-    const price = res["1"] * priceETH * 2 / totalSupply;
+    const price = new Decimal(res["1"]).mul(priceETH).mul(2).div(totalSupply);
 
     //console.log(`${JSON.stringify(res)}, ${totalSupply}`)
 
@@ -231,8 +237,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 balance = await getErcBalance(process.env["MultisigAddress"], token.src_address);
             }
 
-            const balanceNormal = Number(balance) / Math.pow(10, Number(token.decimals));
-            const balanceUSD = balanceNormal === 0 ? 0 : balanceNormal * Number(token.price);
+            const balanceNormal = Decimal.div(balance, Decimal.pow(10, token.decimals)).toNumber();
+            const balanceUSD = balanceNormal === 0 ? 0 : Decimal.mul(balanceNormal, token.price).toNumber();
 
             return {address: token.src_address, balance, balanceNormal, balanceUSD};
     })).catch(
