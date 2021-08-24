@@ -16,7 +16,7 @@
     "typescript": "^3.3.3"
   },
   "dependencies": {
-    "amm-types": "1.0.17",
+    "amm-types": "2.0.1",
     "decimal.js": "10.2.1",
     "mongodb": "^3.6.6",
     "node-fetch": "^2.6.1",

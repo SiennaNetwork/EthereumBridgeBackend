@@ -1,7 +1,7 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { SigningCosmWasmClient, Secp256k1Pen } from "secretjs";
 import { MongoClient } from "mongodb";
-import { ExchangeContract } from 'amm-types/dist/lib/contract';
+import { ExchangeContract } from "amm-types/dist/lib/exchange";
 
 const secretNodeURL: string = process.env["secretNodeURL2"];
 const mongodbName: string = process.env["mongodbName"];
