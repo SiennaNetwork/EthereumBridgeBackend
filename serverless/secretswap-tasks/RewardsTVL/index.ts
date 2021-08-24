@@ -5,7 +5,8 @@ import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import { CosmWasmClient, EnigmaUtils, SigningCosmWasmClient, Secp256k1Pen } from "secretjs";
 import Decimal from "decimal.js";
-import { Snip20Contract, RewardsFactoryContract } from "amm-types/dist/lib/contract";
+import { Snip20Contract } from "amm-types/dist/lib/snip20";
+import { RewardsContract } from "amm-types/dist/lib/rewards";
 
 
 //const coinGeckoApi = "https://api.coingecko.com/api/v3/simple/price?";
@@ -162,15 +163,15 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const queryClient = new CosmWasmClient(secretNodeURL, seed);
     const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes));
 
-    const rewardsContract = new RewardsFactoryContract(SIENNA_REWARDS_CONTRACT, signingCosmWasmClient, queryClient);
-    const fetchedPools = await rewardsContract.get_pools();
+    const rewardsContract = new RewardsContract(SIENNA_REWARDS_CONTRACT, signingCosmWasmClient, queryClient);
+    const fetchedPool = await rewardsContract.get_pool(new Date().getTime());
 
     await Promise.all(
         pools.map(async pool => {
             const poolAddr = pool.lp_token_address;
             const incTokenAddr = pool.inc_token.address;
 
-            const thePool: any = fetchedPools.find(item => item.pool.lp_token.address === incTokenAddr);
+            //const thePool: any = fetchedPools.find(item => item.pool.lp_token.address === incTokenAddr);
 
             const rewardTokenPrice = await getPriceForSymbol(queryClient, pool.rewards_token.address, pool.rewards_token.symbol, tokens, pairs);
             context.log(`rewards token price ${rewardTokenPrice}`);
@@ -181,10 +182,10 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             await db.collection("rewards_data").updateOne({ "lp_token_address": poolAddr },
                 {
                     $set: {
-                        rewards_contract: thePool.address,
-                        lp_token_address: thePool.lp_token.address,
-                        share: thePool.share,
-                        total_locked: thePool.size,
+                        rewards_contract: fetchedPool.reward_token.address,
+                        lp_token_address: fetchedPool.lp_token.address,
+                        //share: 0,//thePool.share,
+                        total_locked: fetchedPool.pool_locked,
                         //"inc_token.price": incTokenPrice,
                         "rewards_token.price": rewardTokenPrice
                     }

@@ -1,5 +1,5 @@
 import { AzureFunction, Context } from "@azure/functions"
-import { create_fee } from "amm-types/dist/lib/contract";
+import { create_fee } from "amm-types/dist/lib/core";
 import { SigningCosmWasmClient, Secp256k1Pen } from "secretjs";
 
 const secretNodeURL = process.env["secretNodeURL"];
