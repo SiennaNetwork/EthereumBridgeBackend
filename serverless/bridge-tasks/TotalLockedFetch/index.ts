@@ -4,7 +4,7 @@ import Web3 from "web3";
 import fetch from "node-fetch";
 import Decimal from "decimal.js";
 
-const supportedNetworks = ["ethereum", "binancesmartchain"]
+const supportedNetworks = ["ethereum", "binancesmartchain"];
 
 const erc20ABI = [
     {
@@ -140,9 +140,9 @@ const uniABI = [
         payable: false,
         type: "function" as "function"
     }
-]
+];
 
-const uniLPPrefix = 'UNILP'
+const uniLPPrefix = "UNILP";
 const coinGeckoUrl = "https://api.coingecko.com/api/v3/simple/price?";
 
 const ethPrice = async (): Promise<string> => {
@@ -150,13 +150,8 @@ const ethPrice = async (): Promise<string> => {
         ids: "ethereum",
         // eslint-disable-next-line @typescript-eslint/camelcase
         vs_currencies: "USD"
-    })).then((response) => {
-        if (response.ok) {
-            return response;
-        }
-        throw new Error(`Network response was not ok. Status: ${response.status}`);
-    });
-    return (await price.json())["ethereum"].usd
+    }));
+    return (await price.json())["ethereum"].usd;
 };
 
 // this only works for ETH pairs... todo: generalize it when we want to reward other pools
@@ -186,28 +181,30 @@ interface LockedResult {
 
 const updateDbPrice = async (db, address, price) => {
     await db.collection("token_pairing").updateOne(
-        {"src_address": address},
+        { "src_address": address },
         { $set: { price: price } }
-        ).catch(
-            (err) => {
-                throw new Error(`Failed to update price: ${err}`);
-            });
-}
+    ).catch(
+        (err) => {
+            throw new Error(`Failed to update price: ${err}`);
+        });
+};
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
     const client: MongoClient = await MongoClient.connect(`${process.env["mongodbUrl"]}`,
         { useUnifiedTopology: true, useNewUrlParser: true }).catch(
-        (err: any) => {
-            context.log(err);
-            throw new Error("Failed to connect to database");
-        }
-    );
+            async (err: any) => {
+                context.log(err);
+                await client.close();
+                throw new Error("Failed to connect to database");
+            }
+        );
     const db = await client.db(`${process.env["mongodbName"]}`);
 
     const tokens = await db.collection("token_pairing").find({}).limit(100).toArray().catch(
-        (err: any) => {
+        async (err: any) => {
             context.log(err);
+            await client.close();
             throw new Error("Failed to get tokens from collection");
         }
     );
@@ -218,52 +215,56 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             .filter((token) => supportedNetworks.includes(token.src_network.trim().toLowerCase()))
             .map(async (token): Promise<LockedResult> => {
 
-            let balance;
-            if (token.src_address === "native") {
-                balance = await getEthBalance(process.env["MultisigAddress"]);
-            }
-            else if (token.src_coin === "WSCRT" || token.src_coin === "SEFI" || token.src_coin === "WSIENNA") {
-                balance = await getErcSupply(token.src_address);
-                //context.log(`total supply for ${token.src_coin}: ${balance}`);
-            } else if (token.display_props.symbol.startsWith(uniLPPrefix)) {
-                // uni price updates from here
-                balance = await getErcBalance(process.env["MultisigAddress"], token.src_address);
-                token.price = await getUniPrice(token.src_address);
-                await updateDbPrice(db, token.src_address, token.price);
-            }
+                let balance;
+                if (token.src_address === "native") {
+                    balance = await getEthBalance(process.env["MultisigAddress"]);
+                }
+                else if (token.src_coin === "WSCRT" || token.src_coin === "SEFI" || token.src_coin === "WSIENNA") {
+                    balance = await getErcSupply(token.src_address);
+                    //context.log(`total supply for ${token.src_coin}: ${balance}`);
+                } else if (token.display_props.symbol.startsWith(uniLPPrefix)) {
+                    // uni price updates from here
+                    balance = await getErcBalance(process.env["MultisigAddress"], token.src_address);
+                    token.price = await getUniPrice(token.src_address);
+                    await updateDbPrice(db, token.src_address, token.price);
+                }
 
-            else {
-                //context.log(`updating supply for  ${process.env["MultisigAddress"]}: ${token.src_address}`);
-                balance = await getErcBalance(process.env["MultisigAddress"], token.src_address);
-            }
+                else {
+                    //context.log(`updating supply for  ${process.env["MultisigAddress"]}: ${token.src_address}`);
+                    balance = await getErcBalance(process.env["MultisigAddress"], token.src_address);
+                }
 
-            const balanceNormal = Decimal.div(balance, Decimal.pow(10, token.decimals)).toNumber();
-            const balanceUSD = balanceNormal === 0 ? 0 : Decimal.mul(balanceNormal, token.price).toNumber();
+                const balanceNormal = Decimal.div(balance, Decimal.pow(10, token.decimals)).toNumber();
+                const balanceUSD = balanceNormal === 0 ? 0 : Decimal.mul(balanceNormal, token.price).toNumber();
 
-            return {address: token.src_address, balance, balanceNormal, balanceUSD};
-    })).catch(
-        (err) => {
-            context.log(err);
-            throw new Error("Failed to fetch balance");
-    });
+                return { address: token.src_address, balance, balanceNormal, balanceUSD };
+            })).catch(
+                async (err) => {
+                    context.log(err);
+                    await client.close();
+                    throw new Error("Failed to fetch balance");
+                });
 
     //context.log(balances);
 
     await Promise.all(
         balances.map(async b => {
             await db.collection("token_pairing").updateOne(
-                {"src_address": b.address},
-                { $set:
-                        { totalLocked: b.balance,
-                          totalLockedNormal: String(b.balanceNormal),
-                          totalLockedUSD: String(b.balanceUSD)
-                        }
+                { "src_address": b.address },
+                {
+                    $set:
+                    {
+                        totalLocked: b.balance,
+                        totalLockedNormal: String(b.balanceNormal),
+                        totalLockedUSD: String(b.balanceUSD)
+                    }
                 });
         })).catch(
-        (err) => {
-            context.log(err);
-            throw new Error("Failed to fetch price");
-        });
+            async (err) => {
+                context.log(err);
+                await client.close();
+                throw new Error("Failed to fetch price");
+            });
 
     await client.close();
     const timeStamp = new Date().toISOString();
