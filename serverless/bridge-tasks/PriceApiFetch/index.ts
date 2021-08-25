@@ -22,16 +22,16 @@ class ConstantPriceOracle implements PriceOracle {
     }
 
     async getPrices(symbols: string[]): Promise<PriceResult[]> {
-        let resp = symbols.map((symbol): PriceResult => {
+        const resp = symbols.map((symbol): PriceResult => {
 
-            let price = this.priceMap[symbol]
+            const price = this.priceMap[symbol];
             if (!price) {
                 return {
                     symbol,
                     price: undefined
                 };
             }
-            return {symbol, price };
+            return { symbol, price };
         });
         return Promise.resolve(resp);
     };
@@ -41,7 +41,7 @@ class BinancePriceOracle implements PriceOracle {
     async getPrices(symbols: string[]): Promise<PriceResult[]> {
         let priceBTC;
         try {
-            priceBTC = await(
+            priceBTC = await (
                 await fetch(binanceUrl + new URLSearchParams({
                     symbol: "BTCUSDT",
                 })).then((response) => {
@@ -51,20 +51,20 @@ class BinancePriceOracle implements PriceOracle {
                     throw new Error(`Network response was not ok. Status: ${response.status}`);
                 })
             ).json();
-        } catch(err) {
+        } catch (err) {
             throw new Error(`Binance oracle failed to fetch price BTC: ${err}`);
         }
-        
+
 
         return Promise.all<PriceResult>(
             symbols.map(async (symbol): Promise<PriceResult> => {
 
                 if (symbol === "USDT") {
-                    return {symbol: "USDT", price: "1.000"};
+                    return { symbol: "USDT", price: "1.000" };
                 }
 
                 if (symbol === "BTC") {
-                    return {symbol: "BTC", price: priceBTC.price};
+                    return { symbol: "BTC", price: priceBTC.price };
                 }
 
                 let priceRelative;
@@ -90,9 +90,9 @@ class BinancePriceOracle implements PriceOracle {
                     price: priceRelativeToUSD(priceBTC.price, resultRelative.price)
                 };
             })).catch(
-            (err) => {
-                throw new Error(`Binance oracle failed to fetch price: ${err}`);
-            });
+                (err) => {
+                    throw new Error(`Binance oracle failed to fetch price: ${err}`);
+                });
     }
 }
 
@@ -151,7 +151,9 @@ class CoinGeckoOracle implements PriceOracle {
         "BUNNY": "pancake-bunny",
         "SIENNA": "sienna-erc20",
         "WSIENNA": "sienna-erc20",
-        "STEST": "sienna-erc20"
+        "STEST": "sienna-erc20",
+        "SITOK": "sienna-erc20",
+        "XMR": "monero"
     }
 
     symbolToID = symbol => {
@@ -201,9 +203,9 @@ class CoinGeckoOracle implements PriceOracle {
                 }
 
             })).catch(
-            (err) => {
-                throw new Error(`Coingecko oracle failed to fetch price: ${err}`);
-            });
+                (err) => {
+                    throw new Error(`Coingecko oracle failed to fetch price: ${err}`);
+                });
     }
 }
 
@@ -216,22 +218,16 @@ interface PriceResult {
 // disabling new BinancePriceOracle till we figure out the DAI stuff
 const oracles: PriceOracle[] = [new CoinGeckoOracle, new ConstantPriceOracle];
 
-const uniLPPrefix = 'UNILP'
+const uniLPPrefix = 'UNILP';
 
-const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
+const LPPrefix = 'lp';
 
-    const client: MongoClient = await MongoClient.connect(`${process.env["mongodbUrl"]}`,
-        { useUnifiedTopology: true, useNewUrlParser: true }).catch(
-        (err: any) => {
+const fetchPrices = async function (context: Context, db, client: MongoClient, collectionName: String): Promise<void[]> {
+
+    const tokens = await db.collection(collectionName).find({}).limit(100).toArray().catch(
+        async (err: any) => {
             context.log(err);
-            throw new Error("Failed to connect to database");
-        }
-    );
-    const db = await client.db(`${process.env["mongodbName"]}`);
-
-    const tokens = await db.collection("token_pairing").find({}).limit(100).toArray().catch(
-        (err: any) => {
-            context.log(err);
+            await client.close();
             throw new Error("Failed to get tokens from collection");
         }
     );
@@ -241,21 +237,29 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     // the split '(' handles the (BSC) tokens
     try {
-         symbols = tokens
-             .map(t => t.display_props.symbol.split('(')[0])
-             .filter(t => !t.startsWith(uniLPPrefix))
-             .filter(t => !t.startsWith("SEFI"));
+        symbols = tokens
+            .map(t => t.display_props.symbol.split('(')[0])
+            .filter(t => !t.startsWith(LPPrefix))
+            .filter(t => !t.startsWith(uniLPPrefix))
+            .filter(t => !t.startsWith("SEFI"));
     } catch (e) {
         context.log(e);
+        await client.close();
         throw new Error("Failed to get symbol for token");
     }
 
-    let prices: PriceResult[][] = await Promise.all(oracles.map(
-        async o => (await o.getPrices(symbols)).filter(p => !isNaN(Number(p.price)))
-    ));
+    context.log(symbols);
 
-    let average_prices: PriceResult[] = [];
-    //context.log(prices);
+    const averagePrices: PriceResult[] = [];
+    let prices: PriceResult[][];
+    try {
+        prices = await Promise.all(oracles.map(
+            async o => (await o.getPrices(symbols)).filter(p => !isNaN(Number(p.price)))
+        ));
+        context.log(prices);
+    } catch (e) {
+        await client.close();
+    }
 
     for (const symbol of symbols) {
 
@@ -264,14 +268,14 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         prices.forEach((priceOracleResponse: PriceResult[]) => {
 
             priceOracleResponse.forEach((price: PriceResult) => {
-                if (symbol === price.symbol){
+                if (symbol === price.symbol) {
                     total = total.plus(price.price);
                     length++;
                 }
             });
         });
         //context.log(`${symbol} - ${total}:${length}`);
-        average_prices.push({
+        averagePrices.push({
             symbol,
             price: total.div(length).toFixed(4),
         });
@@ -279,16 +283,36 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     }
 
 
-    //context.log(average_prices);
+    context.log(averagePrices);
 
-    await Promise.all(
-        average_prices.map(async p => {
-            await db.collection("token_pairing").updateOne({"display_props.symbol": new RegExp(p.symbol, 'i')}, { $set: { price: p.price }});
+    return Promise.all(
+        averagePrices.map(async p => {
+            await db.collection(collectionName).updateOne({ "display_props.symbol": new RegExp(`^(?!${LPPrefix}).*${p.symbol}`, 'i') }, { $set: { price: p.price } });
         })).catch(
-        (err) => {
-            context.log(err);
-            throw new Error("Failed to fetch price");
-        });
+            async (err) => {
+                context.log(err);
+                await client.close();
+                throw new Error("Failed to fetch price");
+            });
+
+    // const timeStamp = new Date().toISOString();
+    // context.log("JavaScript timer trigger function ran!", timeStamp);
+}
+
+const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
+
+    const client: MongoClient = await MongoClient.connect(`${process.env["mongodbUrl"]}`,
+        { useUnifiedTopology: true, useNewUrlParser: true }).catch(
+            (err: any) => {
+                context.log(err);
+                throw new Error("Failed to connect to database");
+            }
+        );
+    const db = await client.db(`${process.env["mongodbName"]}`);
+
+    await fetchPrices(context, db, client, "token_pairing");
+    await fetchPrices(context, db, client, "secret_tokens");
+
     await client.close();
 
     // const timeStamp = new Date().toISOString();
