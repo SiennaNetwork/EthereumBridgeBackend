@@ -127,27 +127,37 @@ const getPriceForSymbol = async (queryClient: CosmWasmClient, contractAddress: s
 
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
-    const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`,
-        { useUnifiedTopology: true, useNewUrlParser: true }).catch(
-            (err: any) => {
-                context.log(err);
-                throw new Error("Failed to connect to database");
-            }
-        );
+    const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
+        (err: any) => {
+            context.log(err);
+            throw new Error("Failed to connect to database");
+        }
+    );
     const db = await client.db(`${mongodbName}`);
-    const pools: RewardPoolData[] = await db.collection("rewards_data").find({}).toArray().catch(
+    const pools: any[] = await db.collection("rewards_data").find({}).toArray().catch(
         (err: any) => {
             context.log(err);
             throw new Error("Failed to get rewards from collection");
         });
 
 
-    const tokens = await db.collection("token_pairing").find({}).limit(100).toArray().catch(
+    let tokens = await db.collection("token_pairing").find({}).limit(100).toArray().catch(
         (err: any) => {
             context.log(err);
             throw new Error("Failed to get tokens from collection");
         }
     );
+
+    const secretTokens = await db.collection("secret_tokens").find({}).limit(100).toArray().catch(
+        (err: any) => {
+            context.log(err);
+            throw new Error("Failed to get tokens from collection");
+        }
+    );
+
+    tokens = tokens.concat(secretTokens);
+
+    console.log(`${JSON.stringify(tokens)}`)
 
     const pairs = await db.collection("secretswap_pairs").find({}).limit(1000).toArray().catch(
         (err: any) => {
