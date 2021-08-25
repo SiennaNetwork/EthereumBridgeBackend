@@ -40,6 +40,7 @@
     "express-validator": "^6.10.0",
     "lodash": "^4.17.21",
     "lusca": "^1.6.1",
+    "mongodb": "^3.1.0",
     "mongoose": "^5.12.3",
     "node-cache": "^5.1.2",
     "pug": "^3.0.2",

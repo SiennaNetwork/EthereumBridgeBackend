@@ -127,7 +127,7 @@ const getPriceForSymbol = async (queryClient: CosmWasmClient, contractAddress: s
 
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
-    const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`).catch(
+    const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
         (err: any) => {
             context.log(err);
             throw new Error("Failed to connect to database");
