@@ -15,10 +15,7 @@ const timerTrigger: AzureFunction = async function (
   context: Context,
   myTimer: any
 ): Promise<void> {
-  const client: MongoClient = await MongoClient.connect(mongodbUrl, {
-    useUnifiedTopology: true,
-    useNewUrlParser: true,
-  }).catch((err: any) => {
+  const client: MongoClient = await MongoClient.connect(mongodbUrl, { useUnifiedTopology: true, useNewUrlParser: true }).catch((err: any) => {
     context.log(err);
     throw new Error("Failed to connect to database");
   });
@@ -32,7 +29,7 @@ const timerTrigger: AzureFunction = async function (
   const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes));
 
   let pairsAddressesNotInDb: string[];
-  
+
   try {
     pairsAddressesNotInDb = (await signingCosmWasmClient.getContracts(pairCodeId))
       .filter((p) => p.label.endsWith(`${factoryContract}-${pairCodeId}`))
@@ -40,13 +37,13 @@ const timerTrigger: AzureFunction = async function (
       .filter((addr) => !pairsInDb.has(addr));
   } catch (e) {
     context.log("secretjs error on getContracts:", e.message);
-    client.close();
+    await client.close();
     return;
   }
 
   if (pairsAddressesNotInDb.length === 0) {
     context.log("No new pairs.");
-    client.close();
+    await client.close();
     return;
   }
 
@@ -86,8 +83,8 @@ const timerTrigger: AzureFunction = async function (
       return p;
     });
   } catch (e) {
-    context.log("secretjs error on queryContractSmart:", e);
-    client.close();
+    context.log("secretjs error on queryContractSmart:", e.message);
+    await client.close();
     return;
   }
 
@@ -97,7 +94,7 @@ const timerTrigger: AzureFunction = async function (
   } catch (e) {
     context.log("mongodb error on insertMany:", e.message);
   } finally {
-    client.close();
+    await client.close();
   }
 };
 
