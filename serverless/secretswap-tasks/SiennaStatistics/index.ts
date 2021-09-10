@@ -1,12 +1,9 @@
 /* eslint-disable @typescript-eslint/camelcase */
 /* eslint-disable camelcase */
-import fetch from "node-fetch";
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import { CosmWasmClient, EnigmaUtils, SigningCosmWasmClient, Secp256k1Pen } from "secretjs";
-import Decimal from "decimal.js";
 import { Snip20Contract } from "amm-types/dist/lib/snip20";
-import { RewardsContract } from "amm-types/dist/lib/rewards";
 import { schedule } from './circulating_supply';
 import moment from 'moment';
 import { findWhere } from 'underscore'
@@ -18,32 +15,6 @@ const mongodbName = process.env["mongodbName"];
 const mnemonic = process.env["mnemonic"];
 const sender_address = process.env["sender_address"];
 const coinGeckoUrl = "https://api.coingecko.com/api/v3/simple/price?";
-
-const getScrtPrice = async (): Promise<number> => {
-
-    const priceRelative = await fetch(coinGeckoUrl + new URLSearchParams({
-        ids: "secret",
-        // eslint-disable-next-line @typescript-eslint/camelcase
-        vs_currencies: "USD"
-    })).then((response) => {
-        if (response.ok) {
-            return response;
-        }
-        throw new Error(`Network response was not ok. Status: ${response.status}`);
-    }).catch(
-        (_) => {
-            throw new Error("Failed to parse response for secret");
-        }
-    );
-
-    const asJson = await priceRelative.json();
-    try {
-        const resultRelative = asJson["secret"].usd;
-        return Number(resultRelative);
-    } catch {
-        throw new Error(`Failed to parse response for secret. response: ${JSON.stringify(asJson)}`);
-    }
-};
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
     const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
@@ -64,8 +35,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const queryClient = new CosmWasmClient(secretNodeURL, seed);
     const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes));
 
-    const priceRelative = await getScrtPrice();
-
     const snip20Contract = new Snip20Contract(token.dst_address, signingCosmWasmClient, queryClient);
 
     const token_info = await snip20Contract.get_token_info();
@@ -80,10 +49,10 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 symbol: token.display_props.symbol,
                 decimals: token_info.decimals,
                 circulating_supply: circulating_supply,
-                price_usd: token.price * priceRelative,
-                contract_address: 'secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4',
-                market_cap_usd: token.price * circulating_supply * priceRelative,
-                network: token.dst_network,
+                price_usd: token.price,
+                contract_address: token.dst_address,
+                market_cap_usd: token.price * circulating_supply,
+                network: 'Secret Network',
                 type: 'SNIP-20'
             }
         }, { upsert: true });
