@@ -72,16 +72,16 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     const circulating_supply = findWhere(schedule, { date: moment().format('MM/DD/YYYY') }).supply;
 
-    await db.collection("sienna_statistics").updateOne({ name: token_info.name, symbol: token_info.symbol },
+    await db.collection("sienna_statistics").updateOne({ name: token.name, symbol: token.display_props.symbol },
         {
             $set: {
                 total_supply: token_info.total_supply,
-                name: token_info.name,
-                symbol: token_info.symbol,
+                name: token.name,
+                symbol: token.display_props.symbol,
                 decimals: token_info.decimals,
                 circulating_supply: circulating_supply,
                 price_usd: token.price * priceRelative,
-                contract_address: token.dst_address,
+                contract_address: 'secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4',
                 market_cap_usd: token.price * circulating_supply * priceRelative,
                 network: token.dst_network,
                 type: 'SNIP-20'
