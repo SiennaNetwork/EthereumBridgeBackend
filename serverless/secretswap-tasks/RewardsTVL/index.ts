@@ -192,7 +192,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             await db.collection("rewards_data").updateOne({ "lp_token_address": poolAddr },
                 {
                     $set: {
-                        rewards_contract: fetchedPool.reward_token.address,
+                        rewards_contract: SIENNA_REWARDS_CONTRACT,
                         lp_token_address: fetchedPool.lp_token.address,
                         //share: 0,//thePool.share,
                         total_locked: fetchedPool.pool_locked,
