@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/camelcase */
 import mongoose from "mongoose";
-export interface SienaStatisticDocument extends mongoose.Document {
+export interface SiennaTokenStatisticDocument extends mongoose.Document {
     circulating_supply: number;
-    total_supply: string;
+    total_supply: number;
     price_usd: number;
     name: string;
     symbol: string;
@@ -12,11 +12,12 @@ export interface SienaStatisticDocument extends mongoose.Document {
     type: string;
     contract_address: string;
     max_supply: string;
+    tokens_locked_by_team: string;
 
 }
-export const sienaStatisticSchema = new mongoose.Schema({
+export const SiennaTokenStatisticSchema = new mongoose.Schema({
     circulating_supply: Number,
-    total_supply: String,
+    total_supply: Number,
     price_usd: Number,
     name: String,
     symbol: String,
@@ -25,9 +26,10 @@ export const sienaStatisticSchema = new mongoose.Schema({
     network: String,
     type: String,
     contract_address: String,
-    max_supply: String
-}, { collection: "sienna_statistics" });
+    max_supply: Number,
+    tokens_locked_by_team: Number
+}, { collection: "sienna_token_statistics" });
 
 
 
-export const SiennaStatistics = mongoose.model<SienaStatisticDocument>("sienna_statistics", sienaStatisticSchema);
+export const SiennaTokenStatistics = mongoose.model<SiennaTokenStatisticDocument>("sienna_token_statistics", SiennaTokenStatisticSchema);

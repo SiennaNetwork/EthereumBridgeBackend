@@ -23,7 +23,7 @@ import * as signerHealthController from "./controllers/signer_health";
 import * as claimsController from "./controllers/claims";
 import * as cashbackController from "./controllers/cashback_stats";
 import * as votesController from "./controllers/votes";
-import * as statisticsController from "./controllers/sienna_statistics";
+import * as siennaTokenStatisticsController from "./controllers/sienna_token_statistics";
 
 import config from "./util/config";
 
@@ -123,6 +123,6 @@ app.get("/secret_votes/", votesController.getAllVotes);
 app.post("/secret_votes/:voteAddr", votesController.newVote);
 app.post("/secret_votes/finalize/:voteAddr", votesController.finalizeVote);
 
-app.get("/sienna/", statisticsController.getStatistics);
+app.get("/sienna_token_statistics/", siennaTokenStatisticsController.getStatistics);
 
 export default app;
