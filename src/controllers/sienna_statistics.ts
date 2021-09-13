@@ -33,7 +33,7 @@ export const getStatistics = async (req: Request, res: Response) => {
 
 
 export const updateLockedbyTeam = async (req: Request, res: Response) => {
-    if (req.body.locked_by_team && parseFloat(req.body.locked_by_team)) {
+    if (req.body.locked_by_team && !isNaN(req.body.locked_by_team)) {
         try {
             await SiennaStatistics.findOneAndUpdate({}, {
                 $set: {
