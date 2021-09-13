@@ -53,7 +53,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 contract_address: token.dst_address,
                 market_cap_usd: token.price * circulating_supply,
                 network: 'Secret Network',
-                type: 'SNIP-20'
+                type: 'SNIP-20',
+                locked_by_team: 0
             }
         }, { upsert: true });
 

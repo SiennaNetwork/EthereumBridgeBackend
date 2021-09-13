@@ -23,7 +23,8 @@ export const sienaStatisticSchema = new mongoose.Schema({
     market_cap_usd: Number,
     network: String,
     type: String,
-    contract_address: String
+    contract_address: String,
+    locked_by_team: { type: Number, select: false, default: 0 }
 }, { collection: "sienna_statistics" });
 
 

@@ -124,5 +124,6 @@ app.post("/secret_votes/:voteAddr", votesController.newVote);
 app.post("/secret_votes/finalize/:voteAddr", votesController.finalizeVote);
 
 app.get("/sienna/", statisticsController.getStatistics);
+app.post("/sienna/", statisticsController.updateLockedbyTeam);
 
 export default app;
