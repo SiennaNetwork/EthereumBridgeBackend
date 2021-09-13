@@ -11,6 +11,7 @@ export interface SienaStatisticDocument extends mongoose.Document {
     network: string;
     type: string;
     contract_address: string;
+    max_supply: string;
 
 }
 export const sienaStatisticSchema = new mongoose.Schema({
@@ -24,7 +25,7 @@ export const sienaStatisticSchema = new mongoose.Schema({
     network: String,
     type: String,
     contract_address: String,
-    locked_by_team: { type: Number, select: false, default: 0 }
+    max_supply: String
 }, { collection: "sienna_statistics" });
 
 

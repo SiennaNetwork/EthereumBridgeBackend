@@ -7,14 +7,14 @@ import { Snip20Contract } from "amm-types/dist/lib/snip20";
 import { schedule } from './circulating_supply';
 import moment from 'moment';
 import { findWhere } from 'underscore'
-
+import Decimal from "decimal.js";
 
 const secretNodeURL = process.env["secretNodeURL"];
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
 const mnemonic = process.env["mnemonic"];
 const sender_address = process.env["sender_address"];
-const coinGeckoUrl = "https://api.coingecko.com/api/v3/simple/price?";
+const totalLockedByTeam = process.env["total_locked_by_team"] && !isNaN(parseFloat(process.env["total_locked_by_team"])) ? parseFloat(process.env["total_locked_by_team"]) : 0;
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
     const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
@@ -44,17 +44,21 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     await db.collection("sienna_statistics").updateOne({ name: token.name, symbol: token.display_props.symbol },
         {
             $set: {
-                total_supply: token_info.total_supply,
+                total_supply: new Decimal(token_info.total_supply).div(
+                    Decimal.pow(10, token_info.decimals)
+                ).toString(),
                 name: token.name,
                 symbol: token.display_props.symbol,
                 decimals: token_info.decimals,
-                circulating_supply: circulating_supply,
+                circulating_supply: circulating_supply - totalLockedByTeam,
                 price_usd: token.price,
                 contract_address: token.dst_address,
                 market_cap_usd: token.price * circulating_supply,
                 network: 'Secret Network',
                 type: 'SNIP-20',
-                locked_by_team: 0
+                max_supply: new Decimal(token_info.total_supply).div(
+                    Decimal.pow(10, token_info.decimals)
+                ).toString()
             }
         }, { upsert: true });
 
