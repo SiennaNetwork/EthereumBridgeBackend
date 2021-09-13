@@ -149,7 +149,7 @@ class CoinGeckoOracle implements PriceOracle {
         "LINA": "linear",
         "FINE": "refinable",
         "BUNNY": "pancake-bunny",
-        "SIENNA": "sienna-erc20",
+        "SIENNA": "sienna",
         "WSIENNA": "sienna-erc20",
         "STEST": "sienna-erc20",
         "SITOK": "sienna-erc20",
