@@ -157,7 +157,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     tokens = tokens.concat(secretTokens);
 
-    console.log(`${JSON.stringify(tokens)}`)
+    context.log(`${JSON.stringify(tokens)}`)
 
     const pairs = await db.collection("secretswap_pairs").find({}).limit(1000).toArray().catch(
         (err: any) => {
@@ -173,11 +173,12 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const queryClient = new CosmWasmClient(secretNodeURL, seed);
     const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes));
 
-    const rewardsContract = new RewardsContract(SIENNA_REWARDS_CONTRACT, signingCosmWasmClient, queryClient);
-    const fetchedPool = await rewardsContract.get_pool(new Date().getTime());
+
 
     await Promise.all(
         pools.map(async pool => {
+            const rewardsContract = new RewardsContract(pool.rewards_contract, signingCosmWasmClient, queryClient);
+            const fetchedPool = await rewardsContract.get_pool(new Date().getTime());
             const poolAddr = pool.lp_token_address;
             const incTokenAddr = pool.inc_token.address;
 
@@ -189,11 +190,11 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             const incTokenPrice = await getPriceForSymbol(queryClient, incTokenAddr, pool.inc_token.symbol, tokens, pairs, context, signingCosmWasmClient);
             context.log(`inc token price ${incTokenPrice}`);
 
-            await db.collection("rewards_data").updateOne({ "lp_token_address": poolAddr },
+
+            return db.collection("rewards_data").updateOne({ "lp_token_address": poolAddr },
                 {
                     $set: {
-                        rewards_contract: SIENNA_REWARDS_CONTRACT,
-                        lp_token_address: fetchedPool.lp_token.address,
+                        //lp_token_address: pool.lp_token.address,
                         //share: 0,//thePool.share,
                         total_locked: fetchedPool.pool_locked,
                         //"inc_token.price": incTokenPrice,
@@ -230,6 +231,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         }
     );
     await client.close();
+    context.log('Updated Rewards')
     //set response in case of code being called from a http trigger
     context.res = {
         status: 200, /* Defaults to 200 */

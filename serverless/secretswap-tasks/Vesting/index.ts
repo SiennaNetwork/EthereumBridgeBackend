@@ -23,6 +23,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     while (call) {
         try {
+            context.log(`Calling with fees ${JSON.stringify(fee)}`)
             await signingCosmWasmClient.execute(RPTContractAddress, { vest: {} }, undefined, undefined, fee);
             call = false;
         } catch (e) {
@@ -30,11 +31,11 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             if (e.toString().indexOf("insufficient fee") > -1) {
                 const feePart = e.toString().split("required: ")[1].split(".")[0];
                 let newFee = Math.trunc(parseInt(feePart) + parseInt(feePart) / 100 * 15).toString();
-                fee = create_fee(newFee)
+                fee = create_fee(newFee, fee.gas);
             } else if (e.toString().indexOf("out of gas in location") > -1) {
                 const gasPart = e.toString().split("gasUsed: ")[1].split(".")[0];
                 let newGas = Math.trunc(parseInt(gasPart) + parseInt(gasPart) / 100 * 15).toString();
-                fee = create_fee(fee.amount[0].amount, newGas)
+                fee = create_fee(fee.amount[0].amount, newGas);
             } else {
                 call = false;
             }
