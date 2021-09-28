@@ -1,17 +1,17 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/azure/functions-action
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Testnet Bridge Tasks - Build and deploy Function App
+name: Testnet & Development API ENIGMA - Build and deploy Function App
 
 on:
   push:
     branches:
-      - testnet
+      - develop
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_NAME_ETH: testnet-eth-bridge-tasks    # set this to your application's name
-  AZURE_FUNCTIONAPP_NAME_BSC: testnet-bsc-bridge-tasks    # set this to your application's name
+  AZURE_FUNCTIONAPP_NAME_TESTNET: sienna-secret-api-testnet
+  AZURE_FUNCTIONAPP_NAME_DEV: sienna-secret-api-dev
   AZURE_FUNCTIONAPP_PACKAGE_PATH: 'serverless/bridge-tasks' # set this to the path to your web app project, defaults to the repository root
   NODE_VERSION: '12.x' # set this to the node version to use (supports 8.x, 10.x, 12.x)
 
@@ -40,18 +40,18 @@ jobs:
 
     - name: 'Run Azure Functions Action ETH'
       uses: Azure/functions-action@v1
-      id: bridgeETHFA
+      id: secret-api-testnet
       with:
-        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME_ETH }}
+        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME_TESTNET }}
         slot-name: 'production'
         package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-        publish-profile: ${{ secrets.AzureAppService_PublishProfile_61bbb1a27cf444349984addfa45203cf }}
+        publish-profile: ${{ secrets.CF_SIENNA_API_ENIGMA_TESTNET }}
 
     - name: 'Run Azure Functions Action BSC'
       uses: Azure/functions-action@v1
-      id: bridgeBSCFA
+      id: secret-api-dev
       with:
-        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME_BSC }}
+        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME_DEV }}
         slot-name: 'production'
         package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-        publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_BSC }}
+        publish-profile: ${{ secrets.CF_SIENNA_API_ENIGMA_DEV }}
