@@ -7,5 +7,5 @@
       "schedule": "0 */5 * * * *"
     }
   ],
-  "scriptFile": "../dist/SiennaStatistics/index.js"
+  "scriptFile": "../dist/SiennaTokenStatistics/index.js"
 }
