@@ -3,6 +3,7 @@ import { create_fee } from "amm-types/dist/lib/core";
 import { SigningCosmWasmClient, Secp256k1Pen, BroadcastMode } from "secretjs";
 import { MongoClient } from "mongodb";
 import moment from "moment";
+import * as sgMail from '@sendgrid/mail';
 
 const secretNodeURL = process.env["secretNodeURL"];
 const RPTContractAddress = process.env["RPTContractAddress"];
@@ -13,6 +14,11 @@ const vesting_fee_gas = process.env["vesting_fee_gas"] || "1000000";
 
 const mongodbName: string = process.env["mongodbName"];
 const mongodbUrl: string = process.env["mongodbUrl"];
+
+const sendGridAPIKey: string = process.env["send_grid_api_key"];
+const sendGridFrom: string = process.env["send_grid_from"];
+const sendGridSubject: string = process.env["send_grid_subject"];
+const sendGridTo: string = process.env["send_grid_to"];
 
 class PatchedSigningCosmWasmClient extends SigningCosmWasmClient {
     /* this assumes broadcastMode is set to BroadcastMode.Sync
@@ -94,6 +100,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             await dbCollection.insertOne({
                 date: moment().format('YYYY-MM-DD H:m:s'),
                 success: true,
+                fee: JSON.stringify(fee),
                 result: JSON.stringify(result)
             })
             call = false;
@@ -112,8 +119,26 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 await dbCollection.insertOne({
                     date: moment().format('YYYY-MM-DD H:m:s'),
                     success: false,
-                    result: JSON.stringify(e)
-                })
+                    fee: JSON.stringify(fee),
+                    result: e.toString()
+                });
+
+
+                if (sendGridAPIKey && sendGridFrom && sendGridSubject && sendGridTo) {
+                    sgMail.setApiKey(sendGridAPIKey);
+                    const msg = {
+                        to: sendGridTo.split(';'),
+                        from: sendGridFrom,
+                        subject: sendGridSubject,
+                        html: `<h3>Vesting Call Failed</h3>
+                    <br>
+                    Error: <b>${e.toString()}</b>
+                    <br>
+                    Amounts: ${JSON.stringify(fee)}
+                    `,
+                    };
+                    await sgMail.send(msg);
+                }
             }
         }
     }
