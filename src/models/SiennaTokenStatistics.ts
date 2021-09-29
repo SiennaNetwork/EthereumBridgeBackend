@@ -33,3 +33,24 @@ export const SiennaTokenStatisticSchema = new mongoose.Schema({
 
 
 export const SiennaTokenStatistics = mongoose.model<SiennaTokenStatisticDocument>("sienna_token_statistics", SiennaTokenStatisticSchema);
+
+
+export interface SiennaTokenHistoricalDataDocument extends mongoose.Document {
+    circulating_supply: number;
+    total_supply: number;
+    price_usd: number;
+    market_cap_usd: number;
+    max_supply: string;
+}
+export const SiennaTokenHistoricalDataSchema = new mongoose.Schema({
+    circulating_supply: Number,
+    total_supply: Number,
+    price_usd: Number,
+    market_cap_usd: Number,
+    max_supply: Number
+}, { collection: "sienna_token_historical_data" });
+
+
+
+export const SiennaTokenHistoricalData = mongoose.model<SiennaTokenHistoricalDataDocument>("sienna_token_historical_data", SiennaTokenHistoricalDataSchema);
+

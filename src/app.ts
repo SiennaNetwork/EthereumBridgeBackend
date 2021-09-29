@@ -125,4 +125,6 @@ app.post("/secret_votes/finalize/:voteAddr", votesController.finalizeVote);
 
 app.get("/sienna_token_statistics/", siennaTokenStatisticsController.getStatistics);
 
+app.get("/sienna_token_historical_data/", siennaTokenStatisticsController.getHistoricalData);
+
 export default app;

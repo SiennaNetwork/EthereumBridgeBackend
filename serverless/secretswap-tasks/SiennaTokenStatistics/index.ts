@@ -42,7 +42,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     let circulating_supply = new Decimal(findWhere(schedule, { date: moment().format('MM/DD/YYYY') }).supply).sub(tokensLockedByTeam).toNumber();
 
 
-
     await db.collection("sienna_token_statistics").updateOne({ name: token.name, symbol: token.display_props.symbol },
         {
             $set: {
@@ -64,6 +63,19 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 ).toNumber()
             }
         }, { upsert: true });
+
+    await db.collection("sienna_token_historical_data").insertOne({
+        date: Date.now(),
+        market_cap_usd: new Decimal(token.price).mul(circulating_supply).toNumber(),
+        price_usd: new Decimal(token.price).toNumber(),
+        circulating_supply: circulating_supply,
+        max_supply: new Decimal(token_info.total_supply).div(
+            Decimal.pow(10, token_info.decimals)
+        ).toNumber(),
+        total_supply: new Decimal(token_info.total_supply).div(
+            Decimal.pow(10, token_info.decimals)
+        ).toNumber(),
+    });
 
 };
 
