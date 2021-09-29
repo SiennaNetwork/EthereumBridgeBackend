@@ -65,7 +65,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         }, { upsert: true });
 
     await db.collection("sienna_token_historical_data").insertOne({
-        date: Date.now(),
+        date: new Date(),
         market_cap_usd: new Decimal(token.price).mul(circulating_supply).toNumber(),
         price_usd: new Decimal(token.price).toNumber(),
         circulating_supply: circulating_supply,
