@@ -24,11 +24,12 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         }
     );
     const db = await client.db(`${mongodbName}`);
-    const token: any = await db.collection("token_pairing").findOne({ name: 'Sienna Token', 'display_props.symbol': 'SIENNA' }).catch(
+    const token: any = await db.collection("token_pairing").findOne({ name: 'SIENNA', 'display_props.symbol': 'SIENNA' }).catch(
         (err: any) => {
             context.log(err);
             throw new Error("Failed to get tokens from collection");
         });
+    if (!token) return context.log(`SIENNA TOKEN NOT FOUND`)
     const pen = await Secp256k1Pen.fromMnemonic(mnemonic);
 
     const seed = EnigmaUtils.GenerateNewSeed();
@@ -65,7 +66,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         }, { upsert: true });
 
     await db.collection("sienna_token_historical_data").insertOne({
-        date: Date.now(),
+        date: new Date(),
         market_cap_usd: new Decimal(token.price).mul(circulating_supply).toNumber(),
         price_usd: new Decimal(token.price).toNumber(),
         circulating_supply: circulating_supply,
