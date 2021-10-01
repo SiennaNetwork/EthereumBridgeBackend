@@ -3,7 +3,7 @@ import { create_fee } from "amm-types/dist/lib/core";
 import { SigningCosmWasmClient, Secp256k1Pen, BroadcastMode } from "secretjs";
 import { MongoClient } from "mongodb";
 import moment from "moment";
-import * as sgMail from '@sendgrid/mail';
+const sgMail = require('@sendgrid/mail');
 
 const secretNodeURL = process.env["secretNodeURL"];
 const RPTContractAddress = process.env["RPTContractAddress"];
@@ -129,7 +129,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     const msg = {
                         to: sendGridTo.split(';'),
                         from: sendGridFrom,
-                        subject: sendGridSubject,
+                        subject: `${sendGridSubject} at ${moment().format('YYYY-MM-DD h:m:s')}`,
                         html: `<h3>Vesting Call Failed</h3>
                     <br>
                     Error: <b>${e.toString()}</b>
