@@ -30,13 +30,12 @@ export const historicalDataQueryValidator = validate(checkSchema({
     period: {
         in: ["query"],
         matches: {
-            options: /^\d\s(days|weeks|months|years)$/,
-            errorMessage: "period must be in format ^/\d/\s(days|weeks|months|years)$"
+            options: /^(\d)*\s(days|weeks|months|years)$/,
+            errorMessage: "period must be in format (\d)*\s(days|weeks|months|years)"
         },
         isString: {
             errorMessage: "period must be a string"
         },
-        toInt: true,
         trim: true,
     },
     type: {
@@ -57,11 +56,11 @@ export const getHistoricalData = async (req: Request, res: Response) => {
     const period = req.query.period.toString().split(' ')[1] as unitOfTime.DurationConstructor;
     let query = {
         date: {
-            $gte: new Date(moment().subtract(periodValue, period).format('YYYY-MM-DD'))
+            $gte: new Date(moment().subtract(periodValue, period).startOf('day').format('YYYY-MM-DD'))
         }
     };
 
-    let format;
+    let format: string = '%Y-%m-%d %H:00:00';
 
     switch (req.query.type) {
         case 'hourly':
@@ -82,45 +81,46 @@ export const getHistoricalData = async (req: Request, res: Response) => {
         default:
             format = '%Y-%m-%d %H:00:00'
     }
-
-    const data = await SiennaTokenHistoricalData.aggregate([{
-        $match: query
-    }, {
-        $project: {
-            market_cap_usd: "$market_cap_usd",
-            price_usd: "$price_usd",
-            circulating_supply: "$circulating_supply",
-            max_supply: "$max_supply",
-            total_supply: "$total_supply",
-            date: {
-                $dateToString: {
-                    date: "$date",
-                    format: format
+    const data = await cache.get("sienna_token_historical_data_" + `${period}_${periodValue}_${req.query.type}`, async () => {
+        return await SiennaTokenHistoricalData.aggregate([{
+            $match: query
+        }, {
+            $project: {
+                market_cap_usd: "$market_cap_usd",
+                price_usd: "$price_usd",
+                circulating_supply: "$circulating_supply",
+                max_supply: "$max_supply",
+                total_supply: "$total_supply",
+                date: {
+                    $dateToString: {
+                        date: "$date",
+                        format: format
+                    }
                 }
             }
-        }
-
-    }, {
-        $group: {
-            _id: "$date",
-            date: { $first: "$date" },
-            market_cap_usd: {
-                $avg: "$market_cap_usd"
-            },
-            price_usd: {
-                $avg: "$price_usd"
-            },
-            circulating_supply: {
-                $avg: "$circulating_supply"
-            },
-            max_supply: {
-                $avg: "$max_supply"
-            },
-            total_supply: {
-                $avg: "$total_supply"
+        }, {
+            $group: {
+                _id: "$date",
+                date: { $first: "$date" },
+                market_cap_usd: {
+                    $avg: "$market_cap_usd"
+                },
+                price_usd: {
+                    $avg: "$price_usd"
+                },
+                circulating_supply: {
+                    $avg: "$circulating_supply"
+                },
+                max_supply: {
+                    $avg: "$max_supply"
+                },
+                total_supply: {
+                    $avg: "$total_supply"
+                }
             }
-        }
-    }]);
+        }]);
+    });
+
 
     try {
         res.json({ data });
