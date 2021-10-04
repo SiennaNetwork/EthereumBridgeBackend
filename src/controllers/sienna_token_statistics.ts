@@ -45,7 +45,7 @@ export const historicalDataQueryValidator = validate(checkSchema({
         },
         matches: {
             options: /^(hourly|daily|weekly|monthly|yearly)$/,
-            errorMessage: "period must be in format ^(hourly|daily|weekly|monthly|yearly)$"
+            errorMessage: "type must be in format ^(hourly|daily|weekly|monthly|yearly)$"
         },
         trim: true,
     }
