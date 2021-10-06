@@ -21,6 +21,8 @@ export interface SecretSwapPairDocument extends mongoose.Document {
   token_code_hash: string;
   asset0_volume: string;
   asset1_volume: string;
+  contract_version: number;
+  total_liquidity: string;
   factory: {
     address: string;
     code_hash: string;
