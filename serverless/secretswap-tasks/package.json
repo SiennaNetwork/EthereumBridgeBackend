@@ -18,6 +18,7 @@
   "dependencies": {
     "@sendgrid/mail": "^7.4.7",
     "amm-types": "2.0.1",
+    "bottleneck": "^2.19.5",
     "decimal.js": "10.2.1",
     "moment": "^2.29.1",
     "mongodb": "^3.6.6",

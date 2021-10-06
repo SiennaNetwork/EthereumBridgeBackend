@@ -23,6 +23,7 @@ export interface NativeTokenPool {
 export interface SecretSwapPoolDocument extends mongoose.Document {
   assets: Array<TokenPool | NativeTokenPool>;
   total_share: string;
+  contract_version: number;
 }
 
 export const secretSwapPoolSchema = new mongoose.Schema(

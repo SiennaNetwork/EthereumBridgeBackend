@@ -114,6 +114,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 const gasPart = e.toString().split("gasUsed: ")[1].split(".")[0];
                 let newGas = Math.trunc(parseInt(gasPart) + parseInt(gasPart) / 100 * 15).toString();
                 fee = create_fee(fee.amount[0].amount, newGas);
+            } else if (e.toString().indexOf("signature verification failed") > -1) {
+                //do nothing, retry
             } else {
                 call = false;
                 await dbCollection.insertOne({
