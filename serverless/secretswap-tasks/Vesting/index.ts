@@ -104,6 +104,13 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 result: JSON.stringify(result)
             })
             call = false;
+            context.res = {
+                status: 200, /* Defaults to 200 */
+                headers: {
+                    "content-type": "application/json"
+                },
+                body: { success: true }
+            };
         } catch (e) {
             context.log(e);
             if (e.toString().indexOf("insufficient fee") > -1) {
@@ -141,6 +148,14 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     };
                     await sgMail.send(msg);
                 }
+
+                context.res = {
+                    status: 200, /* Defaults to 200 */
+                    headers: {
+                        "content-type": "application/json"
+                    },
+                    body: { success: false, error: e.toString() }
+                };
             }
         }
     }
