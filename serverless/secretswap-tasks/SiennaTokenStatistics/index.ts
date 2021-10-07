@@ -24,7 +24,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         }
     );
     const db = await client.db(`${mongodbName}`);
-    const token: any = await db.collection("token_pairing").findOne({ name: 'Sienna Token', 'display_props.symbol': 'SIENNA' }).catch(
+    const token: any = await db.collection("token_pairing").findOne({ name: 'SIENNA', 'display_props.symbol': 'SIENNA' }).catch(
         (err: any) => {
             context.log(err);
             throw new Error("Failed to get tokens from collection");
