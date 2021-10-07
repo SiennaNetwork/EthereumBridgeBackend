@@ -40,8 +40,10 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     const token_info = await snip20Contract.get_token_info();
 
-    let circulating_supply = new Decimal(findWhere(schedule, { date: moment().format('MM/DD/YYYY') }).supply).sub(tokensLockedByTeam).toNumber();
+    const fixedValue = findWhere(schedule, { date: moment().format('MM/DD/YYYY') });
+    if (!fixedValue) return context.log(`Fixed value could not be found for date: ${moment().format('MM/DD/YYYY')}`);
 
+    let circulating_supply = new Decimal(fixedValue.supply).sub(tokensLockedByTeam).add(fixedValue.vesting || 0).toNumber();
 
     await db.collection("sienna_token_statistics").updateOne({ name: token.name, symbol: token.display_props.symbol },
         {
