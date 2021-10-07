@@ -29,7 +29,7 @@ const timerTrigger: AzureFunction = async function (
   const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes));
 
   try {
-    const contracts = await signingCosmWasmClient.getContracts(pairCodeId);
+    const contracts = (await signingCosmWasmClient.getContracts(pairCodeId)).filter((p) => p.label.endsWith(`${factoryContract}-${pairCodeId}`));
     await Promise.all(contracts.map(async contract => {
       const ammclient = new ExchangeContract(contract.address, signingCosmWasmClient);
       try {
