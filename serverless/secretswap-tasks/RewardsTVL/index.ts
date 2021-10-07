@@ -7,7 +7,11 @@ import { CosmWasmClient, EnigmaUtils, SigningCosmWasmClient, Secp256k1Pen } from
 import Decimal from "decimal.js";
 import { Snip20Contract } from "amm-types/dist/lib/snip20";
 import { RewardsContract } from "amm-types/dist/lib/rewards";
+import Bottleneck from "bottleneck";
 
+const limiter = new Bottleneck({
+  maxConcurrent: 1
+});
 
 //const coinGeckoApi = "https://api.coingecko.com/api/v3/simple/price?";
 //const futureBlock = process.env["futureBlock"] || 10_000_000;
@@ -176,7 +180,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         pools.map(async pool => {
             try {
                 const rewardsContract = new RewardsContract(pool.rewards_contract, signingCosmWasmClient, queryClient);
-                const fetchedPool = await rewardsContract.get_pool(new Date().getTime());
+                const fetchedPool = await limiter.schedule(() => rewardsContract.get_pool(new Date().getTime()));
                 const poolAddr = pool.lp_token_address;
                 //const incTokenAddr = pool.inc_token.address;
 
@@ -184,7 +188,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
                 const rewardTokenPrice = await getPriceForSymbol(queryClient, pool.rewards_token.address, pool.rewards_token.symbol, tokens, pairs);
 
-
+                context.log(`Locked for Pool: ${pool.inc_token.symbol} ${fetchedPool.pool_locked}`);
                 //const incTokenPrice = await getPriceForSymbol(queryClient, incTokenAddr, pool.inc_token.symbol, tokens, pairs, context, signingCosmWasmClient);
 
 
