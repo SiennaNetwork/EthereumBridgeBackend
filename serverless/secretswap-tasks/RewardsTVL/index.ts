@@ -66,28 +66,27 @@ const getLPPrice = async (queryClient: CosmWasmClient, contractAddress: string, 
     const [prefix, s1, s2] = symbol.split("-");
 
     const pair = getPair(pairs, contractAddress);
-    context.log(`pair: ${JSON.stringify(pair)}`);
+
 
     const address1 = pair.asset_infos[0]?.token?.contract_addr;
     const address2 = pair.asset_infos[1]?.token?.contract_addr;
 
-    context.log(`Got symbols: ${s1} | ${s2} | ${prefix}`);
     const t1 = getToken(tokens, s1);
-
     let token = getToken(tokens, s2);
+
     if ([address1, address2].includes(t1.dst_address)) {
         token = t1;
     }
 
     const tokenPrice = token.price;
 
-    context.log(`p1 price: ${tokenPrice}`);
+
 
     const tokenInfo = (await queryClient.queryContractSmart(contractAddress, queryTokenInfo())).token_info;
-    context.log(`total tokens: ${JSON.stringify(tokenInfo)}`);
+
 
     const tokenInfo2 = (await queryClient.queryContractSmart(token.dst_address, queryTokenInfo())).token_info;
-    context.log(`total tokens: ${JSON.stringify(tokenInfo2)}`);
+
 
     /* const totalBalance = (await queryClient.queryContractSmart(token.dst_address, querySnip20Balance(pair.contract_addr, `${viewingKeySwapContract}`)));
      context.log(`total balance: ${JSON.stringify(totalBalance)}`);*/
@@ -110,7 +109,6 @@ const getLPPrice = async (queryClient: CosmWasmClient, contractAddress: string, 
 
 
 const getPriceForSymbol = async (queryClient: CosmWasmClient, contractAddress: string, symbol: string, tokens: any[], pairs: any[], context?: any, signingCosmWasmClient?: SigningCosmWasmClient): Promise<string> => {
-
     if (symbol.startsWith(LPPrefix)) {
         return await getLPPrice(queryClient, contractAddress, symbol, tokens, pairs, context, signingCosmWasmClient);
     } else {
@@ -157,7 +155,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     tokens = tokens.concat(secretTokens);
 
-    context.log(`${JSON.stringify(tokens)}`)
 
     const pairs = await db.collection("secretswap_pairs").find({}).limit(1000).toArray().catch(
         (err: any) => {
@@ -177,30 +174,34 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     await Promise.all(
         pools.map(async pool => {
-            const rewardsContract = new RewardsContract(pool.rewards_contract, signingCosmWasmClient, queryClient);
-            const fetchedPool = await rewardsContract.get_pool(new Date().getTime());
-            const poolAddr = pool.lp_token_address;
-            const incTokenAddr = pool.inc_token.address;
+            try {
+                const rewardsContract = new RewardsContract(pool.rewards_contract, signingCosmWasmClient, queryClient);
+                const fetchedPool = await rewardsContract.get_pool(new Date().getTime());
+                const poolAddr = pool.lp_token_address;
+                //const incTokenAddr = pool.inc_token.address;
 
-            //const thePool: any = fetchedPools.find(item => item.pool.lp_token.address === incTokenAddr);
+                //const thePool: any = fetchedPools.find(item => item.pool.lp_token.address === incTokenAddr);
 
-            const rewardTokenPrice = await getPriceForSymbol(queryClient, pool.rewards_token.address, pool.rewards_token.symbol, tokens, pairs);
-            context.log(`rewards token price ${rewardTokenPrice}`);
-
-            const incTokenPrice = await getPriceForSymbol(queryClient, incTokenAddr, pool.inc_token.symbol, tokens, pairs, context, signingCosmWasmClient);
-            context.log(`inc token price ${incTokenPrice}`);
+                const rewardTokenPrice = await getPriceForSymbol(queryClient, pool.rewards_token.address, pool.rewards_token.symbol, tokens, pairs);
 
 
-            return db.collection("rewards_data").updateOne({ "lp_token_address": poolAddr },
-                {
-                    $set: {
-                        //lp_token_address: pool.lp_token.address,
-                        //share: 0,//thePool.share,
-                        total_locked: fetchedPool.pool_locked,
-                        //"inc_token.price": incTokenPrice,
-                        "rewards_token.price": rewardTokenPrice
-                    }
-                });
+                //const incTokenPrice = await getPriceForSymbol(queryClient, incTokenAddr, pool.inc_token.symbol, tokens, pairs, context, signingCosmWasmClient);
+
+
+
+                return await db.collection("rewards_data").updateOne({ "lp_token_address": poolAddr },
+                    {
+                        $set: {
+                            //lp_token_address: pool.lp_token.address,
+                            //share: 0,//thePool.share,
+                            total_locked: fetchedPool.pool_locked,
+                            //"inc_token.price": incTokenPrice,
+                            "rewards_token.price": rewardTokenPrice
+                        }
+                    });
+            } catch (e) {
+                context.log(`Failed updating pool ${JSON.stringify(pool)} with: ${e.toString()}`)
+            }
 
 
             // const [incTokenPrice, rewardTokenPrice] = await Promise.all([
