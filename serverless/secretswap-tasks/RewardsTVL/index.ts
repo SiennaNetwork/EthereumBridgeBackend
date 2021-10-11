@@ -10,7 +10,7 @@ import { RewardsContract } from "amm-types/dist/lib/rewards";
 import Bottleneck from "bottleneck";
 
 const limiter = new Bottleneck({
-  maxConcurrent: 1
+    maxConcurrent: 1
 });
 
 //const coinGeckoApi = "https://api.coingecko.com/api/v3/simple/price?";
@@ -19,7 +19,6 @@ const limiter = new Bottleneck({
 //const viewingKeySwapContract = process.env["viewingKeySwapContract"];
 const LPPrefix = "LP-";
 const secretNodeURL = process.env["secretNodeURL"];
-const SIENNA_REWARDS_CONTRACT = process.env["SiennaRewardsContract"];
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
 const mnemonic = process.env["mnemonic"];
@@ -188,12 +187,12 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
                 const rewardTokenPrice = await getPriceForSymbol(queryClient, pool.rewards_token.address, pool.rewards_token.symbol, tokens, pairs);
 
-                context.log(`Locked for Pool: ${pool.inc_token.symbol} ${fetchedPool.pool_locked}`);
+                context.log(`Locked for Pool: ${pool.inc_token.symbol} ${fetchedPool.pool_locked} V${pool.version}`);
                 //const incTokenPrice = await getPriceForSymbol(queryClient, incTokenAddr, pool.inc_token.symbol, tokens, pairs, context, signingCosmWasmClient);
 
 
 
-                return await db.collection("rewards_data").updateOne({ "lp_token_address": poolAddr },
+                return await db.collection("rewards_data").updateOne({ "lp_token_address": poolAddr, version: pool.version },
                     {
                         $set: {
                             //lp_token_address: pool.lp_token.address,

@@ -282,11 +282,10 @@ const fetchPrices = async function (context: Context, db, client: MongoClient, c
 
     }
 
-
-    context.log(averagePrices);
-
     return Promise.all(
-        averagePrices.map(async p => {
+        averagePrices.filter((p: any) => {
+            return !isNaN(p.price);
+        }).map(async p => {
             await db.collection(collectionName).updateMany({ "display_props.symbol": new RegExp(`^(?!${LPPrefix}).*${p.symbol}`, 'i') }, { $set: { price: p.price } });
         })).catch(
             async (err) => {
