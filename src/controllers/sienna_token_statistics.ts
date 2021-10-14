@@ -18,7 +18,7 @@ export const getStatistics = async (req: Request, res: Response) => {
         return SiennaTokenStatistics.findOne({});
     });
     try {
-        res.json({ statistics });
+        res.json(statistics);
     } catch (e) {
         res.status(500);
         res.send(`Error: ${e}`);
