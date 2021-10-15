@@ -4,7 +4,7 @@
       "name": "myTimer",
       "type": "timerTrigger",
       "direction": "in",
-      "schedule": "30 53 14 * * *"
+      "schedule": "10 17 23 * * *"
     }
   ],
   "scriptFile": "../dist/Vesting/index.js"

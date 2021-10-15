@@ -3,7 +3,6 @@ import fetch from "node-fetch";
 import { Agent } from "https";
 
 const httpsAgent = new Agent({
-    rejectUnauthorized: false,
     minVersion: "TLSv1"
 });
 
