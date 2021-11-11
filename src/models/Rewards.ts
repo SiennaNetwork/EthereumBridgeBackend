@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/camelcase */
 import mongoose from "mongoose";
-import { ContractInfo } from "amm-types/dist/lib/types";
 
 export interface RewardsDocument extends mongoose.Document {
     lp_token_address: string;
