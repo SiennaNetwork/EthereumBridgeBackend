@@ -2,12 +2,16 @@ import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import fetch from "node-fetch";
 import Decimal from "decimal.js";
+import Bottleneck from "bottleneck";
+const limiter = new Bottleneck({
+    maxConcurrent: 3
+});
 
 const binanceUrl = "https://api.binance.com/api/v3/ticker/price?";
 const coinGeckoUrl = "https://api.coingecko.com/api/v3/simple/price?";
 
 interface PriceOracle {
-    getPrices: (symbols: string[]) => Promise<PriceResult[]>;
+    getPrices: (symbols: string[], context: Context) => Promise<PriceResult[]>;
 }
 
 const priceRelativeToUSD = (priceBTC: string, priceRelative: string): string => {
@@ -21,7 +25,7 @@ class ConstantPriceOracle implements PriceOracle {
         // WSIENNA: "6.0"
     }
 
-    async getPrices(symbols: string[]): Promise<PriceResult[]> {
+    async getPrices(symbols: string[], context: Context): Promise<PriceResult[]> {
         const resp = symbols.map((symbol): PriceResult => {
 
             const price = this.priceMap[symbol];
@@ -38,7 +42,7 @@ class ConstantPriceOracle implements PriceOracle {
 }
 
 class BinancePriceOracle implements PriceOracle {
-    async getPrices(symbols: string[]): Promise<PriceResult[]> {
+    async getPrices(symbols: string[], context: Context): Promise<PriceResult[]> {
         let priceBTC;
         try {
             priceBTC = await (
@@ -158,14 +162,14 @@ class CoinGeckoOracle implements PriceOracle {
         "sLUNA": "terra-luna",
         "sOSMO": "osmosis",
         "sATOM": "cosmos",
-        "sUST": "terra-usd"
+        "sUST": "terrausd"
     }
 
     symbolToID = symbol => {
         return this.symbolMap[symbol];
     }
 
-    async getPrices(symbols: string[]): Promise<PriceResult[]> {
+    async getPrices(symbols: string[], context: Context): Promise<PriceResult[]> {
 
         return Promise.all<PriceResult>(
             symbols.map(async (symbol): Promise<PriceResult> => {
@@ -180,11 +184,12 @@ class CoinGeckoOracle implements PriceOracle {
 
                 let priceRelative;
                 try {
-                    priceRelative = await fetch(coinGeckoUrl + new URLSearchParams({
+                    priceRelative = await limiter.schedule(() => fetch(coinGeckoUrl + new URLSearchParams({
                         ids: coinGeckoID,
                         // eslint-disable-next-line @typescript-eslint/camelcase
                         vs_currencies: "USD"
-                    }));
+                    })));
+
 
                     if (!priceRelative.ok) {
                         throw new Error(`Network response was not ok. Status: ${priceRelative.status}`);
@@ -204,7 +209,11 @@ class CoinGeckoOracle implements PriceOracle {
                         price: String(resultRelative)
                     };
                 } catch {
-                    throw new Error(`Failed to parse response for token: ${symbol}. id: ${coinGeckoID}, response: ${JSON.stringify(asJson)}`);
+                    context.log(`Failed to parse response for token: ${symbol}. id: ${coinGeckoID}, response: ${JSON.stringify(asJson)}`);
+                    return {
+                        symbol,
+                        price: undefined
+                    };
                 }
 
             })).catch(
@@ -261,7 +270,7 @@ const fetchPrices = async function (context: Context, db, client: MongoClient, c
     let prices: PriceResult[][];
     try {
         prices = await Promise.all(oracles.map(
-            async o => (await o.getPrices(symbols)).filter(p => !isNaN(Number(p.price)))
+            async o => (await o.getPrices(symbols, context)).filter(p => !isNaN(Number(p.price)))
         ));
         context.log(prices);
     } catch (e) {
