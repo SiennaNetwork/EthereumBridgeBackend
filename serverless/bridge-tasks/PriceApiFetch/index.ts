@@ -153,7 +153,12 @@ class CoinGeckoOracle implements PriceOracle {
         "WSIENNA": "sienna-erc20",
         "STEST": "sienna-erc20",
         "SITOK": "sienna-erc20",
-        "XMR": "monero"
+        "XMR": "monero",
+        "BUTT": "buttcoin-2",
+        "sLUNA": "terra-luna",
+        "sOSMO": "osmosis",
+        "sATOM": "cosmos",
+        "sUST": "terra-usd"
     }
 
     symbolToID = symbol => {
@@ -216,7 +221,9 @@ interface PriceResult {
 }
 
 // disabling new BinancePriceOracle till we figure out the DAI stuff
-const oracles: PriceOracle[] = [new CoinGeckoOracle, new ConstantPriceOracle];
+
+// 25/11/2021 - disabled the constant price oracle as it's not used
+const oracles: PriceOracle[] = [new CoinGeckoOracle, /*new ConstantPriceOracle*/];
 
 const uniLPPrefix = 'UNILP';
 
