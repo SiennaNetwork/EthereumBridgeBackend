@@ -162,7 +162,8 @@ class CoinGeckoOracle implements PriceOracle {
         "sLUNA": "terra-luna",
         "sOSMO": "osmosis",
         "sATOM": "cosmos",
-        "sUST": "terrausd"
+        "sUST": "terrausd",
+        "sDVPN": "sentinel"
     }
 
     symbolToID = symbol => {
