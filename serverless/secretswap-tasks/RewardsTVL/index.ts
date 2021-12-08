@@ -187,7 +187,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
                 const rewardTokenPrice = await getPriceForSymbol(queryClient, pool.rewards_token.address, pool.rewards_token.symbol, tokens, pairs);
 
-                context.log(`Locked for Pool: ${pool.inc_token.symbol} ${fetchedPool.pool_locked} V${pool.version}`);
+                context.log(`Locked for Pool: ${pool.inc_token.symbol} ${fetchedPool.staked} V${pool.version}`);
                 //const incTokenPrice = await getPriceForSymbol(queryClient, incTokenAddr, pool.inc_token.symbol, tokens, pairs, context, signingCosmWasmClient);
 
 
@@ -197,7 +197,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                         $set: {
                             //lp_token_address: pool.lp_token.address,
                             //share: 0,//thePool.share,
-                            total_locked: fetchedPool.pool_locked,
+                            total_locked: fetchedPool.staked,
                             //"inc_token.price": incTokenPrice,
                             "rewards_token.price": rewardTokenPrice
                         }
