@@ -3,6 +3,11 @@ import { create_fee } from "amm-types/dist/lib/core";
 import { SigningCosmWasmClient, Secp256k1Pen, BroadcastMode } from "secretjs";
 import { MongoClient } from "mongodb";
 import moment from "moment";
+import Bottleneck from "bottleneck";
+
+const limiter = new Bottleneck({
+    maxConcurrent: 1
+});
 const sgMail = require('@sendgrid/mail');
 
 const secretNodeURL = process.env["secretNodeURL"];
@@ -76,19 +81,43 @@ class PatchedSigningCosmWasmClient extends SigningCosmWasmClient {
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
+    const pen = await Secp256k1Pen.fromMnemonic(mnemonic);
+    const signingCosmWasmClient: SigningCosmWasmClient = new PatchedSigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes), null, null, BroadcastMode.Sync);
+
     const client: MongoClient = await MongoClient.connect(mongodbUrl, { useUnifiedTopology: true, useNewUrlParser: true }).catch((err: any) => {
         context.log(err);
         throw new Error("Failed to connect to database");
     });
 
-    const dbCollection = client.db(mongodbName).collection("vesting_log");
 
-    const pen = await Secp256k1Pen.fromMnemonic(mnemonic);
-    const signingCosmWasmClient: SigningCosmWasmClient = new PatchedSigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes), null, null, BroadcastMode.Sync);
-
-    let call: boolean = true;
+    const rewardsCollection = client.db(mongodbName).collection("rewards_data");
+    const pools: any[] = await rewardsCollection.find({ version: "3" }).toArray().catch(
+        (err: any) => {
+            context.log(err);
+            throw new Error("Failed to get rewards from collection");
+        });
 
     let fee = create_fee(vesting_fee_amount, vesting_fee_gas);
+
+    await Promise.all(
+        pools.map(async p => {
+            try {
+                await limiter.schedule(() => new Promise(async (resolve) => {
+                    const pool_info: any = await signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } });
+                    const next_epoch = pool_info.rewards.pool_info.clock.number + 1;
+                    await signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch } } }, undefined, undefined, fee);
+                    resolve(true);
+                }));
+            } catch (err) {
+                context.log(err);
+                await client.close();
+                throw new Error("Begin Epoch call failed");
+            }
+        }));
+
+
+    const dbCollection = client.db(mongodbName).collection("vesting_log");
+    let call: boolean = true;
 
     //insufficient fees; got: 5000ucosm required: 50000uscrt
     //out of gas: out of gas in location: ReadFlat; gasWanted: 5100, gasUsed: 6069.
@@ -98,7 +127,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             context.log(`Calling with fees ${JSON.stringify(fee)}`)
             const result = await signingCosmWasmClient.execute(RPTContractAddress, { vest: {} }, undefined, undefined, fee);
             await dbCollection.insertOne({
-                date: moment().format('YYYY-MM-DD H:m:s'),
+                date: moment().format("YYYY-MM-DD h:m:s"),
                 success: true,
                 fee: JSON.stringify(fee),
                 result: JSON.stringify(result)
@@ -126,7 +155,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             } else {
                 call = false;
                 await dbCollection.insertOne({
-                    date: moment().format('YYYY-MM-DD H:m:s'),
+                    date: moment().format("YYYY-MM-DD h:m:s"),
                     success: false,
                     fee: JSON.stringify(fee),
                     result: e.toString()
@@ -138,7 +167,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     const msg = {
                         to: sendGridTo.split(';'),
                         from: sendGridFrom,
-                        subject: `${sendGridSubject} at ${moment().format('YYYY-MM-DD h:m:s')}`,
+                        subject: `${sendGridSubject} at ${moment().format("YYYY-MM-DD h:m:s")}`,
                         html: `<h3>Vesting Call Failed</h3>
                     <br>
                     Error: <b>${e.toString()}</b>
