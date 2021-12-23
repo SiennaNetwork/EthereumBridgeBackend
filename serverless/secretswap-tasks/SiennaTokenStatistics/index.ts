@@ -8,6 +8,7 @@ import { schedule } from './circulating_supply';
 import moment from 'moment';
 import { findWhere } from 'underscore'
 import Decimal from "decimal.js";
+import axios from "axios";
 
 const secretNodeURL = process.env["secretNodeURL"];
 const mongodbUrl = process.env["mongodbUrl"];
@@ -15,6 +16,8 @@ const mongodbName = process.env["mongodbName"];
 const mnemonic = process.env["mnemonic"];
 const sender_address = process.env["sender_address"];
 const tokensLockedByTeam = process.env["tokens_locked_by_team"] && !isNaN(parseFloat(process.env["tokens_locked_by_team"])) ? new Decimal(process.env["tokens_locked_by_team"]).toNumber() : 0;
+
+const secretAnalyticsTVLUrl = process.env["secretAnalyticsTVLUrl"];
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
     const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
@@ -67,6 +70,13 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             }
         }, { upsert: true });
 
+    let total_value_locked;
+    try {
+        total_value_locked = JSON.parse((await axios.get(secretAnalyticsTVLUrl)).data).liquidity;
+    } catch (e) {
+        context.log(e);
+    }
+
     await db.collection("sienna_token_historical_data").insertOne({
         date: new Date(),
         market_cap_usd: new Decimal(token.price).mul(circulating_supply).toNumber(),
@@ -78,6 +88,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         total_supply: new Decimal(token_info.total_supply).div(
             Decimal.pow(10, token_info.decimals)
         ).toNumber(),
+        total_value_locked
     });
 
 };

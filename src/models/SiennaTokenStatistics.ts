@@ -41,13 +41,15 @@ export interface SiennaTokenHistoricalDataDocument extends mongoose.Document {
     price_usd: number;
     market_cap_usd: number;
     max_supply: string;
+    total_value_locked: number;
 }
 export const SiennaTokenHistoricalDataSchema = new mongoose.Schema({
     circulating_supply: Number,
     total_supply: Number,
     price_usd: Number,
     market_cap_usd: Number,
-    max_supply: Number
+    max_supply: Number,
+    total_value_locked: Number
 }, { collection: "sienna_token_historical_data" });
 
 
