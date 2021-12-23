@@ -8,12 +8,12 @@ import {
 import Cache from "../util/cache";
 import validate from "../util/validate";
 import { checkSchema } from "express-validator";
-import moment, { DurationInputArg1, DurationInputArg2, unitOfTime } from 'moment';
+import moment, { DurationInputArg1, DurationInputArg2, unitOfTime } from "moment";
 
 const cache = Cache.getInstance();
 
 export const getStatistics = async (req: Request, res: Response) => {
-    res.set('Access-Control-Allow-Origin', '*');
+    res.set("Access-Control-Allow-Origin", "*");
     const statistics: SiennaTokenStatisticDocument = await cache.get("sienna_token_statistics", async () => {
         return SiennaTokenStatistics.findOne({});
     });
@@ -52,34 +52,34 @@ export const historicalDataQueryValidator = validate(checkSchema({
 }));
 
 export const getHistoricalData = async (req: Request, res: Response) => {
-    const periodValue = parseInt(req.query.period.toString().split(' ')[0]) as DurationInputArg1;
-    const period = req.query.period.toString().split(' ')[1] as unitOfTime.DurationConstructor;
-    let query = {
+    const periodValue = parseInt(req.query.period.toString().split(" ")[0]) as DurationInputArg1;
+    const period = req.query.period.toString().split(" ")[1] as unitOfTime.DurationConstructor;
+    const query = {
         date: {
-            $gte: new Date(moment().subtract(periodValue, period).startOf('day').format('YYYY-MM-DD'))
+            $gte: new Date(moment().subtract(periodValue, period).startOf("day").format("YYYY-MM-DD"))
         }
     };
 
-    let format: string = '%Y-%m-%d %H:00:00';
+    let format = "%Y-%m-%d %H:00:00";
 
     switch (req.query.type) {
-        case 'hourly':
-            format = '%Y-%m-%d %H:00:00'
+        case "hourly":
+            format = "%Y-%m-%d %H:00:00";
             break;
-        case 'daily':
-            format = '%Y-%m-%d'
+        case "daily":
+            format = "%Y-%m-%d";
             break;
-        case 'weekly':
-            format = '%Y Week %U'
+        case "weekly":
+            format = "%Y Week %U";
             break;
-        case 'monthly':
-            format = '%Y-%m'
+        case "monthly":
+            format = "%Y-%m";
             break;
-        case 'yearly':
-            format = '%Y'
+        case "yearly":
+            format = "%Y";
             break;
         default:
-            format = '%Y-%m-%d %H:00:00'
+            format = "%Y-%m-%d %H:00:00";
     }
     const data = await cache.get("sienna_token_historical_data_" + `${period}_${periodValue}_${req.query.type}`, async () => {
         return await SiennaTokenHistoricalData.aggregate([{
@@ -91,6 +91,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 circulating_supply: "$circulating_supply",
                 max_supply: "$max_supply",
                 total_supply: "$total_supply",
+                total_value_locked: "$total_value_locked",
                 date: {
                     $dateToString: {
                         date: "$date",
@@ -116,6 +117,9 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 },
                 total_supply: {
                     $avg: "$total_supply"
+                },
+                total_value_locked: {
+                    $avg: "$total_value_locked"
                 }
             }
         }]);
