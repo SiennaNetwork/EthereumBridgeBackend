@@ -16,6 +16,7 @@ const mongodbName = process.env["mongodbName"];
 const mnemonic = process.env["mnemonic"];
 const sender_address = process.env["sender_address"];
 const tokensLockedByTeam = process.env["tokens_locked_by_team"] && !isNaN(parseFloat(process.env["tokens_locked_by_team"])) ? new Decimal(process.env["tokens_locked_by_team"]).toNumber() : 0;
+const secretAnalyticsTVLUrl = process.env["secretAnalyticsTVLUrl"];
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
     const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
