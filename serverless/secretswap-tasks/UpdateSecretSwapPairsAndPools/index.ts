@@ -12,7 +12,9 @@ const secretNodeURL: string = process.env["secretNodeURL"];
 const mongodbName: string = process.env["mongodbName"];
 const mongodbUrl: string = process.env["mongodbUrl"];
 const factoryContract: string = process.env["factoryContract"];
+const factoryContractV2: string = process.env["factoryContractV2"];
 const pairCodeId = Number(process.env["pairCodeId"]);
+const pairCodeIdV2 = Number(process.env["pairCodeIdV2"]);
 const mnemonic = process.env["mnemonic"];
 const sender_address = process.env["sender_address"];
 
@@ -29,8 +31,19 @@ const timerTrigger: AzureFunction = async function (
   const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes));
 
   try {
-    const contracts = (await signingCosmWasmClient.getContracts(pairCodeId)).filter((p) => p.label.endsWith(`${factoryContract}-${pairCodeId}`));
+    const contractsV1 = (await signingCosmWasmClient.getContracts(pairCodeId)).filter((p) => p.label.endsWith(`${factoryContract}-${pairCodeId}`)).map(contract => {
+      contract["contract_version"] = 1;
+      return contract;
+    });
+    const contractsV2 = (await signingCosmWasmClient.getContracts(pairCodeIdV2)).filter((p) => p.label.endsWith(`${factoryContractV2}-${pairCodeIdV2}`)).map(contract => {
+      contract["contract_version"] = 2;
+      return contract;
+    });
+
+    const contracts = contractsV1.concat(contractsV2);
+
     await Promise.all(contracts.map(async contract => {
+
       const ammclient = new ExchangeContract(contract.address, signingCosmWasmClient);
       try {
         const pair_info = await limiter.schedule(() => ammclient.get_pair_info());
@@ -54,7 +67,7 @@ const timerTrigger: AzureFunction = async function (
                     }
                   }),
                   total_share: pair_info.total_liquidity,
-                  contract_version: pair_info.contract_version
+                  contract_version: contract["contract_version"]
                 }
               }
             },
@@ -82,12 +95,12 @@ const timerTrigger: AzureFunction = async function (
                 };
               }),
               total_liquidity: pair_info.total_liquidity,
-              contract_version: pair_info.contract_version
+              contract_version: contract["contract_version"]
             }
           }, {
             upsert: true
           })]);
-          context.log(`Updated Pair ${contract.address}`);
+        context.log(`Updated Pair ${contract.address} V${contract["contract_version"]}`);
       } catch (e) {
         context.log(`Failed to update Pair ${contract.address} due to ${e.toString()}`);
       }

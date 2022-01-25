@@ -91,21 +91,26 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
 
     const rewardsCollection = client.db(mongodbName).collection("rewards_data");
-    const pools: any[] = await rewardsCollection.find({ version: "3" }).toArray().catch(
+    const pools: any[] = await rewardsCollection.find().toArray().catch(
         (err: any) => {
             context.log(err);
             throw new Error("Failed to get rewards from collection");
         });
 
-    let fee = create_fee(vesting_fee_amount, vesting_fee_gas);
 
+    //Increase EPOCH Time for V3 Rewwards
+    const poolsV3 = pools.filter(pool => pool.version === "3");
+    const nextEpochLOG = [];
+    let fee = create_fee(vesting_fee_amount, vesting_fee_gas);
     await Promise.all(
-        pools.map(async p => {
+        poolsV3.map(async p => {
             try {
                 await limiter.schedule(() => new Promise(async (resolve) => {
                     const pool_info: any = await signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } });
                     const next_epoch = pool_info.rewards.pool_info.clock.number + 1;
-                    await signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch } } }, undefined, undefined, fee);
+                    const result = await signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch } } }, undefined, undefined, fee);
+                    nextEpochLOG.push({ contract: p.rewards_contract, result });
+
                     resolve(true);
                 }));
             } catch (err) {
@@ -114,10 +119,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 throw new Error("Begin Epoch call failed");
             }
         }));
-
-
     const dbCollection = client.db(mongodbName).collection("vesting_log");
-    let call: boolean = true;
+    let call = true;
 
     //insufficient fees; got: 5000ucosm required: 50000uscrt
     //out of gas: out of gas in location: ReadFlat; gasWanted: 5100, gasUsed: 6069.
@@ -130,8 +133,9 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 date: moment().format("YYYY-MM-DD h:m:s"),
                 success: true,
                 fee: JSON.stringify(fee),
-                result: JSON.stringify(result)
-            })
+                result: JSON.stringify(result),
+                next_epoch: JSON.stringify(nextEpochLOG)
+            });
             call = false;
             context.res = {
                 status: 200, /* Defaults to 200 */
@@ -144,11 +148,11 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             context.log(e);
             if (e.toString().indexOf("insufficient fee") > -1) {
                 const feePart = e.toString().split("required: ")[1].split(".")[0];
-                let newFee = Math.trunc(parseInt(feePart) + parseInt(feePart) / 100 * 15).toString();
+                const newFee = Math.trunc(parseInt(feePart) + parseInt(feePart) / 100 * 15).toString();
                 fee = create_fee(newFee, fee.gas);
             } else if (e.toString().indexOf("out of gas in location") > -1) {
                 const gasPart = e.toString().split("gasUsed: ")[1].split(".")[0];
-                let newGas = Math.trunc(parseInt(gasPart) + parseInt(gasPart) / 100 * 15).toString();
+                const newGas = Math.trunc(parseInt(gasPart) + parseInt(gasPart) / 100 * 15).toString();
                 fee = create_fee(fee.amount[0].amount, newGas);
             } else if (e.toString().indexOf("signature verification failed") > -1) {
                 //do nothing, retry
@@ -158,7 +162,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     date: moment().format("YYYY-MM-DD h:m:s"),
                     success: false,
                     fee: JSON.stringify(fee),
-                    result: e.toString()
+                    result: e.toString(),
+                    next_epoch: JSON.stringify(nextEpochLOG)
                 });
 
 
