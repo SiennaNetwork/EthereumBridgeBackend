@@ -98,21 +98,17 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         });
 
 
-    //Increase EPOCH Time for V3 Rewwards
+    //Increase EPOCH Time for V3 Rewards
     const poolsV3 = pools.filter(pool => pool.version === "3");
     const nextEpochLOG = [];
     let fee = create_fee(vesting_fee_amount, vesting_fee_gas);
     await Promise.all(
         poolsV3.map(async p => {
             try {
-                await limiter.schedule(() => new Promise(async (resolve) => {
-                    const pool_info: any = await signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } });
-                    const next_epoch = pool_info.rewards.pool_info.clock.number + 1;
-                    const result = await signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch } } }, undefined, undefined, fee);
-                    nextEpochLOG.push({ contract: p.rewards_contract, result });
-
-                    resolve(true);
-                }));
+                const pool_info = await limiter.schedule(() => signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } }));
+                const next_epoch = pool_info.rewards.pool_info.clock.number + 1;
+                const result = await limiter.schedule(() => signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch } } }, undefined, undefined, fee));
+                nextEpochLOG.push({ contract: p.rewards_contract, result });
             } catch (err) {
                 context.log(err);
                 await client.close();
@@ -137,6 +133,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 next_epoch: JSON.stringify(nextEpochLOG)
             });
             call = false;
+            //in case this function is called through a http trigger
             context.res = {
                 status: 200, /* Defaults to 200 */
                 headers: {
@@ -157,6 +154,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             } else if (e.toString().indexOf("signature verification failed") > -1) {
                 //do nothing, retry
             } else {
+                //call failed to due possible node issues
                 call = false;
                 await dbCollection.insertOne({
                     date: moment().format("YYYY-MM-DD h:m:s"),
@@ -182,7 +180,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     };
                     await sgMail.send(msg);
                 }
-
+                //in case this function is called through a http trigger
                 context.res = {
                     status: 200, /* Defaults to 200 */
                     headers: {
