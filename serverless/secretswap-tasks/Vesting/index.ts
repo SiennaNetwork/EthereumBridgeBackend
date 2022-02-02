@@ -97,6 +97,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             throw new Error("Failed to get rewards from collection");
         });
 
+    const dbCollection = client.db(mongodbName).collection("vesting_log");
 
     //Increase EPOCH Time for V3 Rewards
     const poolsV3 = pools.filter(pool => pool.version === "3");
@@ -108,14 +109,19 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 const pool_info = await limiter.schedule(() => signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } }));
                 const next_epoch = pool_info.rewards.pool_info.clock.number + 1;
                 const result = await limiter.schedule(() => signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch } } }, undefined, undefined, fee));
-                nextEpochLOG.push({ contract: p.rewards_contract, result });
-            } catch (err) {
-                context.log(err);
+                nextEpochLOG.push({ contract: p.rewards_contract, result, clock: next_epoch });
+            } catch (e) {
+                await dbCollection.insertOne({
+                    date: moment().format("YYYY-MM-DD HH:mm:ss"),
+                    success: false,
+                    fee: fee,
+                    next_epoch_result: { error: e.toString() }
+                });
                 await client.close();
-                throw new Error("Begin Epoch call failed");
+                throw new Error(e);
             }
         }));
-    const dbCollection = client.db(mongodbName).collection("vesting_log");
+
     let call = true;
 
     //insufficient fees; got: 5000ucosm required: 50000uscrt
@@ -126,11 +132,11 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             context.log(`Calling with fees ${JSON.stringify(fee)}`)
             const result = await signingCosmWasmClient.execute(RPTContractAddress, { vest: {} }, undefined, undefined, fee);
             await dbCollection.insertOne({
-                date: moment().format("YYYY-MM-DD h:m:s"),
+                date: moment().format("YYYY-MM-DD HH:mm:ss"),
                 success: true,
-                fee: JSON.stringify(fee),
-                result: JSON.stringify(result),
-                next_epoch: JSON.stringify(nextEpochLOG)
+                fee: fee,
+                vest_result: result,
+                next_epoch_result: nextEpochLOG
             });
             call = false;
             //in case this function is called through a http trigger
@@ -157,11 +163,11 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 //call failed to due possible node issues
                 call = false;
                 await dbCollection.insertOne({
-                    date: moment().format("YYYY-MM-DD h:m:s"),
+                    date: moment().format("YYYY-MM-DD HH:mm:ss"),
                     success: false,
-                    fee: JSON.stringify(fee),
-                    result: e.toString(),
-                    next_epoch: JSON.stringify(nextEpochLOG)
+                    fee: fee,
+                    vest_result: { error: e.toString() },
+                    next_epoch_result: nextEpochLOG
                 });
 
 
@@ -170,7 +176,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     const msg = {
                         to: sendGridTo.split(';'),
                         from: sendGridFrom,
-                        subject: `${sendGridSubject} at ${moment().format("YYYY-MM-DD h:m:s")}`,
+                        subject: `${sendGridSubject} at ${moment().format("YYYY-MM-DD HH:mm:ss")}`,
                         html: `<h3>Vesting Call Failed</h3>
                     <br>
                     Error: <b>${e.toString()}</b>
