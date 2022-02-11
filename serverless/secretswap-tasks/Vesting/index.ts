@@ -99,44 +99,46 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     const dbCollection = client.db(mongodbName).collection("vesting_log");
 
-    //Increase EPOCH Time for V3 Rewards
-    const poolsV3 = pools.filter(pool => pool.version === "3");
-    const nextEpochLOG = [];
+
     let fee = create_fee(vesting_fee_amount, vesting_fee_gas);
-    await Promise.all(
-        poolsV3.map(async p => {
-            try {
-                const pool_info = await limiter.schedule(() => signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } }));
-                const next_epoch = pool_info.rewards.pool_info.clock.number + 1;
-                const result = await limiter.schedule(() => signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch } } }, undefined, undefined, fee));
-                nextEpochLOG.push({ contract: p.rewards_contract, result, clock: next_epoch });
-            } catch (e) {
-                await dbCollection.insertOne({
-                    date: moment().format("YYYY-MM-DD HH:mm:ss"),
-                    success: false,
-                    fee: fee,
-                    next_epoch_result: { error: e.toString() }
-                });
-                await client.close();
-                throw new Error(e);
-            }
-        }));
 
     let call = true;
-
-    //insufficient fees; got: 5000ucosm required: 50000uscrt
-    //out of gas: out of gas in location: ReadFlat; gasWanted: 5100, gasUsed: 6069.
+    let vest_result;
+    let vest_success;
+    const nextepoch_log = [];
+    const epoch_success_call = {};
+    const poolsV3 = pools.filter(pool => pool.version === "3");
 
     while (call) {
         try {
             context.log(`Calling with fees ${JSON.stringify(fee)}`)
-            const result = await signingCosmWasmClient.execute(RPTContractAddress, { vest: {} }, undefined, undefined, fee);
+            if (!vest_success) vest_result = await signingCosmWasmClient.execute(RPTContractAddress, { vest: {} }, undefined, undefined, fee);
+            context.log('Successfully vested RPT');
+            vest_success = true;
+            //Increase EPOCH Time for V3 Rewards
+            await Promise.all(
+                poolsV3.map(async p => {
+                    try {
+                        //in case one of the epoch calls fails due to fees or node issues, don't increment already incremented pools;
+                        if (!epoch_success_call[p.rewards_contract]) {
+                            const pool_info = await signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } });
+                            const next_epoch = pool_info.rewards.pool_info.clock.number + 1;
+                            const result = await signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch } } }, undefined, undefined, fee);
+                            context.log(`Increased clock for: ${p.rewards_contract} to ${next_epoch}`);
+                            epoch_success_call[p.rewards_contract] = true;
+                            nextepoch_log.push({ contract: p.rewards_contract, result, clock: next_epoch });
+                        }
+                    } catch (e) {
+                        nextepoch_log.push({ contract: p.rewards_contract, result: e.toString() });
+                        throw 'EPOCH ERROR: ' + e.toString();
+                    }
+                }));
             await dbCollection.insertOne({
                 date: moment().format("YYYY-MM-DD HH:mm:ss"),
                 success: true,
                 fee: fee,
-                vest_result: result,
-                next_epoch_result: nextEpochLOG
+                vest_result: vest_result,
+                next_epoch_result: nextepoch_log
             });
             call = false;
             //in case this function is called through a http trigger
@@ -148,6 +150,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 body: { success: true }
             };
         } catch (e) {
+            //insufficient fees; got: 5000ucosm required: 50000uscrt
+            //out of gas: out of gas in location: ReadFlat; gasWanted: 5100, gasUsed: 6069.
             context.log(e);
             if (e.toString().indexOf("insufficient fee") > -1) {
                 const feePart = e.toString().split("required: ")[1].split(".")[0];
@@ -160,14 +164,14 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             } else if (e.toString().indexOf("signature verification failed") > -1) {
                 //do nothing, retry
             } else {
-                //call failed to due possible node issues
+                //call failed to due possible node issues, if vest_success === true then one of the epoch calls failed
                 call = false;
                 await dbCollection.insertOne({
                     date: moment().format("YYYY-MM-DD HH:mm:ss"),
                     success: false,
                     fee: fee,
-                    vest_result: { error: e.toString() },
-                    next_epoch_result: nextEpochLOG
+                    vest_result: vest_success ? vest_result : { error: e.toString() },
+                    next_epoch_result: nextepoch_log
                 });
 
 
