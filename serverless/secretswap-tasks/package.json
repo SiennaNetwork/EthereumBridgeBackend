@@ -17,14 +17,14 @@
   },
   "dependencies": {
     "@sendgrid/mail": "^7.4.7",
-    "amm-types": "2.3.1",
+    "amm-types": "2.5.1",
     "axios": "^0.24.0",
     "bottleneck": "^2.19.5",
     "decimal.js": "10.2.1",
     "moment": "^2.29.1",
     "mongodb": "^3.6.6",
     "node-fetch": "^2.6.1",
-    "secretjs": "0.17.0-beta.4",
+    "secretjs": "0.17.5",
     "underscore": "^1.13.1"
   }
 }

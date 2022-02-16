@@ -1,0 +1,19 @@
+{
+    "bindings": [
+        {
+            "type": "httpTrigger",
+            "name": "req",
+            "direction": "in",
+            "methods": [
+                "post"
+            ],
+            "route": "vest"
+        },
+        {
+            "type": "http",
+            "name": "res",
+            "direction": "out"
+        }
+    ],
+    "scriptFile": "../dist/Vesting/index.js"
+}

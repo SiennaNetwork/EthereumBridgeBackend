@@ -178,30 +178,36 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     await Promise.all(
         pools.map(async pool => {
             try {
-                const rewardsContract = new RewardsContract(pool.rewards_contract, signingCosmWasmClient, queryClient);
-                const fetchedPool = await limiter.schedule(() => rewardsContract.get_pool(new Date().getTime()));
+                let total_locked = "0";
+                let rewardTokenPrice = "0";
                 const poolAddr = pool.lp_token_address;
-                //const incTokenAddr = pool.inc_token.address;
+                if (pool.version === "1" || pool.version === "2") {
+                    const fetchedPool = await signingCosmWasmClient.queryContractSmart(pool.rewards_contract, { pool_info: { at: new Date().getTime() } });
+                    total_locked = fetchedPool.pool_info.pool_locked;
+                } else if (pool.version === "3") {
+                    const rewardsContract = new RewardsContract(pool.rewards_contract, signingCosmWasmClient, queryClient);
+                    const fetchedPool = await limiter.schedule(() => rewardsContract.get_pool(new Date().getTime()));
+                    total_locked = fetchedPool.staked;
+                } else {
+                    context.log(`Reward version ${pool.version} is not supported`);
+                    return;
+                }
 
-                //const thePool: any = fetchedPools.find(item => item.pool.lp_token.address === incTokenAddr);
+                context.log(`Locked for Pool: ${pool.inc_token.symbol} ${total_locked} V${pool.version}`);
 
-                const rewardTokenPrice = await getPriceForSymbol(queryClient, pool.rewards_token.address, pool.rewards_token.symbol, tokens, pairs);
-
-                context.log(`Locked for Pool: ${pool.inc_token.symbol} ${fetchedPool.pool_locked} V${pool.version}`);
-                //const incTokenPrice = await getPriceForSymbol(queryClient, incTokenAddr, pool.inc_token.symbol, tokens, pairs, context, signingCosmWasmClient);
-
-
-
+                rewardTokenPrice = await getPriceForSymbol(queryClient, pool.rewards_token.address, pool.rewards_token.symbol, tokens, pairs);
+                
                 return await db.collection("rewards_data").updateOne({ "lp_token_address": poolAddr, version: pool.version },
                     {
                         $set: {
                             //lp_token_address: pool.lp_token.address,
                             //share: 0,//thePool.share,
-                            total_locked: fetchedPool.pool_locked,
+                            total_locked: total_locked,
                             //"inc_token.price": incTokenPrice,
                             "rewards_token.price": rewardTokenPrice
                         }
                     });
+
             } catch (e) {
                 context.log(`Failed updating pool ${JSON.stringify(pool)} with: ${e.toString()}`)
             }
@@ -235,7 +241,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         }
     );
     await client.close();
-    context.log('Updated Rewards')
+    context.log("Updated Rewards");
     //set response in case of code being called from a http trigger
     context.res = {
         status: 200, /* Defaults to 200 */

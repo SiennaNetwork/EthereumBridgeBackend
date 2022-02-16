@@ -25,6 +25,8 @@ import * as cashbackController from "./controllers/cashback_stats";
 import * as votesController from "./controllers/votes";
 import * as siennaTokenStatisticsController from "./controllers/sienna_token_statistics";
 import * as siennaMarketPriceController from "./controllers/sienna_market_price";
+import *  as alterController from "./controllers/alter";
+import *  as vestingLogController from "./controllers/vesting_log";
 
 import config from "./util/config";
 
@@ -129,5 +131,9 @@ app.get("/sienna_token_statistics/", siennaTokenStatisticsController.getStatisti
 app.get("/sienna_token_historical_data/", siennaTokenStatisticsController.historicalDataQueryValidator, siennaTokenStatisticsController.getHistoricalData);
 
 app.get("/sienna_market_price/", siennaMarketPriceController.getPrice);
+
+app.get("/alter/", alterController.getAlter);
+
+app.get("/vesting_log/", vestingLogController.getLog);
 
 export default app;

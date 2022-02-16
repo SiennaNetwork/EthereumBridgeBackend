@@ -3,6 +3,11 @@ import { create_fee } from "amm-types/dist/lib/core";
 import { SigningCosmWasmClient, Secp256k1Pen, BroadcastMode } from "secretjs";
 import { MongoClient } from "mongodb";
 import moment from "moment";
+import Bottleneck from "bottleneck";
+
+const limiter = new Bottleneck({
+    maxConcurrent: 1
+});
 const sgMail = require('@sendgrid/mail');
 
 const secretNodeURL = process.env["secretNodeURL"];
@@ -76,34 +81,67 @@ class PatchedSigningCosmWasmClient extends SigningCosmWasmClient {
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
+    const pen = await Secp256k1Pen.fromMnemonic(mnemonic);
+    const signingCosmWasmClient: SigningCosmWasmClient = new PatchedSigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes), null, null, BroadcastMode.Sync);
+
     const client: MongoClient = await MongoClient.connect(mongodbUrl, { useUnifiedTopology: true, useNewUrlParser: true }).catch((err: any) => {
         context.log(err);
         throw new Error("Failed to connect to database");
     });
 
+
+    const rewardsCollection = client.db(mongodbName).collection("rewards_data");
+    const pools: any[] = await rewardsCollection.find().toArray().catch(
+        (err: any) => {
+            context.log(err);
+            throw new Error("Failed to get rewards from collection");
+        });
+
     const dbCollection = client.db(mongodbName).collection("vesting_log");
 
-    const pen = await Secp256k1Pen.fromMnemonic(mnemonic);
-    const signingCosmWasmClient: SigningCosmWasmClient = new PatchedSigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes), null, null, BroadcastMode.Sync);
-
-    let call: boolean = true;
 
     let fee = create_fee(vesting_fee_amount, vesting_fee_gas);
 
-    //insufficient fees; got: 5000ucosm required: 50000uscrt
-    //out of gas: out of gas in location: ReadFlat; gasWanted: 5100, gasUsed: 6069.
+    let call = true;
+    let vest_result;
+    let vest_success;
+    const nextepoch_log = [];
+    const epoch_success_call = {};
+    const poolsV3 = pools.filter(pool => pool.version === "3");
 
     while (call) {
         try {
             context.log(`Calling with fees ${JSON.stringify(fee)}`)
-            const result = await signingCosmWasmClient.execute(RPTContractAddress, { vest: {} }, undefined, undefined, fee);
+            if (!vest_success) vest_result = await signingCosmWasmClient.execute(RPTContractAddress, { vest: {} }, undefined, undefined, fee);
+            context.log('Successfully vested RPT');
+            vest_success = true;
+            //Increase EPOCH Time for V3 Rewards
+            await Promise.all(
+                poolsV3.map(async p => {
+                    try {
+                        //in case one of the epoch calls fails due to fees or node issues, don't increment already incremented pools;
+                        if (!epoch_success_call[p.rewards_contract]) {
+                            const pool_info = await signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } });
+                            const next_epoch = pool_info.rewards.pool_info.clock.number + 1;
+                            const result = await signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch } } }, undefined, undefined, fee);
+                            context.log(`Increased clock for: ${p.rewards_contract} to ${next_epoch}`);
+                            epoch_success_call[p.rewards_contract] = true;
+                            nextepoch_log.push({ contract: p.rewards_contract, result, clock: next_epoch });
+                        }
+                    } catch (e) {
+                        nextepoch_log.push({ contract: p.rewards_contract, result: e.toString() });
+                        throw 'EPOCH ERROR: ' + e.toString();
+                    }
+                }));
             await dbCollection.insertOne({
-                date: moment().format('YYYY-MM-DD H:m:s'),
+                date: moment().format("YYYY-MM-DD HH:mm:ss"),
                 success: true,
-                fee: JSON.stringify(fee),
-                result: JSON.stringify(result)
-            })
+                fee: fee,
+                vest_result: vest_result,
+                next_epoch_result: nextepoch_log
+            });
             call = false;
+            //in case this function is called through a http trigger
             context.res = {
                 status: 200, /* Defaults to 200 */
                 headers: {
@@ -112,24 +150,28 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 body: { success: true }
             };
         } catch (e) {
+            //insufficient fees; got: 5000ucosm required: 50000uscrt
+            //out of gas: out of gas in location: ReadFlat; gasWanted: 5100, gasUsed: 6069.
             context.log(e);
             if (e.toString().indexOf("insufficient fee") > -1) {
                 const feePart = e.toString().split("required: ")[1].split(".")[0];
-                let newFee = Math.trunc(parseInt(feePart) + parseInt(feePart) / 100 * 15).toString();
+                const newFee = Math.trunc(parseInt(feePart) + parseInt(feePart) / 100 * 15).toString();
                 fee = create_fee(newFee, fee.gas);
             } else if (e.toString().indexOf("out of gas in location") > -1) {
                 const gasPart = e.toString().split("gasUsed: ")[1].split(".")[0];
-                let newGas = Math.trunc(parseInt(gasPart) + parseInt(gasPart) / 100 * 15).toString();
+                const newGas = Math.trunc(parseInt(gasPart) + parseInt(gasPart) / 100 * 15).toString();
                 fee = create_fee(fee.amount[0].amount, newGas);
             } else if (e.toString().indexOf("signature verification failed") > -1) {
                 //do nothing, retry
             } else {
+                //call failed to due possible node issues, if vest_success === true then one of the epoch calls failed
                 call = false;
                 await dbCollection.insertOne({
-                    date: moment().format('YYYY-MM-DD H:m:s'),
+                    date: moment().format("YYYY-MM-DD HH:mm:ss"),
                     success: false,
-                    fee: JSON.stringify(fee),
-                    result: e.toString()
+                    fee: fee,
+                    vest_result: vest_success ? vest_result : { error: e.toString() },
+                    next_epoch_result: nextepoch_log
                 });
 
 
@@ -138,7 +180,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     const msg = {
                         to: sendGridTo.split(';'),
                         from: sendGridFrom,
-                        subject: `${sendGridSubject} at ${moment().format('YYYY-MM-DD h:m:s')}`,
+                        subject: `${sendGridSubject} at ${moment().format("YYYY-MM-DD HH:mm:ss")}`,
                         html: `<h3>Vesting Call Failed</h3>
                     <br>
                     Error: <b>${e.toString()}</b>
@@ -148,7 +190,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     };
                     await sgMail.send(msg);
                 }
-
+                //in case this function is called through a http trigger
                 context.res = {
                     status: 200, /* Defaults to 200 */
                     headers: {
