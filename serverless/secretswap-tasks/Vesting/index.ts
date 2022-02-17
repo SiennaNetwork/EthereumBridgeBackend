@@ -3,11 +3,8 @@ import { create_fee } from "amm-types/dist/lib/core";
 import { SigningCosmWasmClient, Secp256k1Pen, BroadcastMode } from "secretjs";
 import { MongoClient } from "mongodb";
 import moment from "moment";
-import Bottleneck from "bottleneck";
+import { eachLimit, whilst } from "async";
 
-const limiter = new Bottleneck({
-    maxConcurrent: 1
-});
 const sgMail = require('@sendgrid/mail');
 
 const secretNodeURL = process.env["secretNodeURL"];
@@ -105,54 +102,27 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     let call = true;
     let vest_result;
     let vest_success;
+    let vest_error;
+    const logs = [];
+
     const nextepoch_log = [];
     const epoch_success_call = {};
+
     const poolsV3 = pools.filter(pool => pool.version === "3");
 
     while (call) {
         try {
-            context.log(`Calling with fees ${JSON.stringify(fee)}`)
-            if (!vest_success) vest_result = await signingCosmWasmClient.execute(RPTContractAddress, { vest: {} }, undefined, undefined, fee);
-            context.log('Successfully vested RPT');
+            logs.push(`Calling with fees ${JSON.stringify(fee)}`)
+            vest_result = await signingCosmWasmClient.execute(RPTContractAddress, { vest: {} }, undefined, undefined, fee);
+            logs.push('Successfully vested RPT');
             vest_success = true;
-            //Increase EPOCH Time for V3 Rewards
-            await Promise.all(
-                poolsV3.map(async p => {
-                    try {
-                        //in case one of the epoch calls fails due to fees or node issues, don't increment already incremented pools;
-                        if (!epoch_success_call[p.rewards_contract]) {
-                            const pool_info = await signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } });
-                            const next_epoch = pool_info.rewards.pool_info.clock.number + 1;
-                            const result = await signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch } } }, undefined, undefined, fee);
-                            context.log(`Increased clock for: ${p.rewards_contract} to ${next_epoch}`);
-                            epoch_success_call[p.rewards_contract] = true;
-                            nextepoch_log.push({ contract: p.rewards_contract, result, clock: next_epoch });
-                        }
-                    } catch (e) {
-                        nextepoch_log.push({ contract: p.rewards_contract, result: e.toString() });
-                        throw 'EPOCH ERROR: ' + e.toString();
-                    }
-                }));
-            await dbCollection.insertOne({
-                date: moment().format("YYYY-MM-DD HH:mm:ss"),
-                success: true,
-                fee: fee,
-                vest_result: vest_result,
-                next_epoch_result: nextepoch_log
-            });
+            //vest was successful, stop calling
             call = false;
-            //in case this function is called through a http trigger
-            context.res = {
-                status: 200, /* Defaults to 200 */
-                headers: {
-                    "content-type": "application/json"
-                },
-                body: { success: true }
-            };
         } catch (e) {
+            vest_error = e;
             //insufficient fees; got: 5000ucosm required: 50000uscrt
             //out of gas: out of gas in location: ReadFlat; gasWanted: 5100, gasUsed: 6069.
-            context.log(e);
+            logs.push(`Vesting Error: ${e.toString()}`)
             if (e.toString().indexOf("insufficient fee") > -1) {
                 const feePart = e.toString().split("required: ")[1].split(".")[0];
                 const newFee = Math.trunc(parseInt(feePart) + parseInt(feePart) / 100 * 15).toString();
@@ -166,42 +136,109 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             } else {
                 //call failed to due possible node issues, if vest_success === true then one of the epoch calls failed
                 call = false;
-                await dbCollection.insertOne({
-                    date: moment().format("YYYY-MM-DD HH:mm:ss"),
-                    success: false,
-                    fee: fee,
-                    vest_result: vest_success ? vest_result : { error: e.toString() },
-                    next_epoch_result: nextepoch_log
-                });
-
-
-                if (sendGridAPIKey && sendGridFrom && sendGridSubject && sendGridTo) {
-                    sgMail.setApiKey(sendGridAPIKey);
-                    const msg = {
-                        to: sendGridTo.split(';'),
-                        from: sendGridFrom,
-                        subject: `${sendGridSubject} at ${moment().format("YYYY-MM-DD HH:mm:ss")}`,
-                        html: `<h3>Vesting Call Failed</h3>
-                    <br>
-                    Error: <b>${e.toString()}</b>
-                    <br>
-                    Amounts: ${JSON.stringify(fee)}
-                    `,
-                    };
-                    await sgMail.send(msg);
-                }
-                //in case this function is called through a http trigger
-                context.res = {
-                    status: 200, /* Defaults to 200 */
-                    headers: {
-                        "content-type": "application/json"
-                    },
-                    body: { success: false, error: e.toString() }
-                };
             }
         }
     }
 
+    if (vest_success) {
+        await new Promise((resolve) => {
+            eachLimit(poolsV3, 1, async (p, cb) => {
+                let next_epoch;
+                let retries = 1;
+                whilst(
+                    //keep trying until the call is successful
+                    (callback) => callback(null, !epoch_success_call[p.rewards_contract]),
+                    async (callback) => {
+                        try {
+                            if (!next_epoch) {
+                                const pool_info = await signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } });
+                                next_epoch = pool_info.rewards.pool_info.clock.number + 1;
+                            }
+                            const result = await signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch } } }, undefined, undefined, fee);
+                            epoch_success_call[p.rewards_contract] = true;
+                            nextepoch_log.push({ contract: p.rewards_contract, result, clock: next_epoch });
+                        } catch (e) {
+                            //wait 20s before retrying
+                            await new Promise((resolve) => {
+                                setTimeout(() => {
+                                    resolve(true)
+                                }, 20000);
+                            });
+                            //check if the call went through even though it threw an error
+                            const pool_info = await signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } });
+                            if (pool_info.rewards.pool_info.clock.number === next_epoch) {
+                                epoch_success_call[p.rewards_contract] = true;
+                                nextepoch_log.push({ contract: p.rewards_contract, result: 'Call failed but it went through', clock: next_epoch });
+                                logs.push(`Increased clock for: ${p.rewards_contract} to ${next_epoch} after call failed`);
+                                return;
+                            }
+                            logs.push(`Error increasing clock for ${p.rewards_contract} to ${next_epoch}, try #${retries}`);
+                            retries++;
+                        } finally {
+                            callback();
+                        }
+                    }, () => {
+                        logs.push(`Increased clock for: ${p.rewards_contract} to ${next_epoch} with ${retries} retries`);
+                        cb();
+                    }
+                );
+
+            }, () => {
+                resolve(true);
+            });
+        });
+
+        await dbCollection.insertOne({
+            date: moment().format("YYYY-MM-DD HH:mm:ss"),
+            success: true,
+            fee: fee,
+            vest_result: vest_result,
+            next_epoch_result: nextepoch_log,
+            logs: logs
+        });
+        //in case this function is called through a http trigger
+        context.res = {
+            status: 200, /* Defaults to 200 */
+            headers: {
+                "content-type": "application/json"
+            },
+            body: { success: true }
+        };
+    } else {
+        await dbCollection.insertOne({
+            date: moment().format("YYYY-MM-DD HH:mm:ss"),
+            success: false,
+            fee: fee,
+            vest_result: { error: vest_error.toString() },
+            next_epoch_result: [],
+            logs: logs
+        });
+
+
+        if (sendGridAPIKey && sendGridFrom && sendGridSubject && sendGridTo) {
+            sgMail.setApiKey(sendGridAPIKey);
+            const msg = {
+                to: sendGridTo.split(';'),
+                from: sendGridFrom,
+                subject: `${sendGridSubject} at ${moment().format("YYYY-MM-DD HH:mm:ss")}`,
+                html: `<h3>Vesting Call Failed</h3>
+            <br>
+            Error: <b>${vest_error.toString()}</b>
+            <br>
+            Amounts: ${JSON.stringify(fee)}
+            `,
+            };
+            await sgMail.send(msg);
+        }
+        //in case this function is called through a http trigger
+        context.res = {
+            status: 200, /* Defaults to 200 */
+            headers: {
+                "content-type": "application/json"
+            },
+            body: { success: false, error: vest_error.toString() }
+        };
+    }
     context.log(`Finished calling vest`)
 };
 
