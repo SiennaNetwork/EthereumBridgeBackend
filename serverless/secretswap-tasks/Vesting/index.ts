@@ -103,6 +103,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     let vest_result;
     let vest_success;
     let vest_error;
+    let vest_fee;
     const logs = [];
 
     const nextepoch_log = [];
@@ -134,6 +135,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             logs.push(`Calling with fees ${JSON.stringify(fee)}`)
             vest_result = await signingCosmWasmClient.execute(RPTContractAddress, { vest: {} }, undefined, undefined, fee);
             logs.push('Successfully vested RPT');
+            vest_fee = JSON.parse(JSON.stringify(fee));
             vest_success = true;
             //vest was successful, stop calling
             call = false;
@@ -172,7 +174,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                             }
                             const result = await signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch } } }, undefined, undefined, fee);
                             epoch_success_call[p.rewards_contract] = true;
-                            nextepoch_log.push({ contract: p.rewards_contract, result, clock: next_epoch });
+                            nextepoch_log.push({ contract: p.rewards_contract, result, clock: next_epoch, fee });
                         } catch (e) {
                             if (e.toString().indexOf("insufficient fee") > -1 || e.toString().indexOf("out of gas in location") > -1) {
                                 fee = parseFeeError(e.toString());
@@ -187,7 +189,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                                 const pool_info = await signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } });
                                 if (pool_info.rewards.pool_info.clock.number === next_epoch) {
                                     epoch_success_call[p.rewards_contract] = true;
-                                    nextepoch_log.push({ contract: p.rewards_contract, result: 'Call failed but it went through', clock: next_epoch });
+                                    nextepoch_log.push({ contract: p.rewards_contract, result: 'Call failed but it went through', clock: next_epoch, fee });
                                     logs.push(`Increased clock for: ${p.rewards_contract} to ${next_epoch} after call failed`);
                                     return;
                                 }
@@ -211,7 +213,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         await dbCollection.insertOne({
             date: moment().format("YYYY-MM-DD HH:mm:ss"),
             success: true,
-            fee: fee,
+            fee: vest_fee,
             vest_result: vest_result,
             next_epoch_result: nextepoch_log,
             logs: logs
@@ -228,7 +230,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         await dbCollection.insertOne({
             date: moment().format("YYYY-MM-DD HH:mm:ss"),
             success: false,
-            fee: fee,
+            fee: vest_fee,
             vest_result: { error: vest_error.toString() },
             next_epoch_result: [],
             logs: logs
