@@ -9,10 +9,15 @@ const sgMail = require('@sendgrid/mail');
 
 const secretNodeURL = process.env["secretNodeURL"];
 const RPTContractAddress = process.env["RPTContractAddress"];
+const MGMTContractAddress = process.env['MGMTContractAddress'];
 const mnemonic = process.env["mnemonic"];
 const sender_address = process.env["sender_address"];
-const vesting_fee_amount = process.env["vesting_fee_amount"] || "50000";
-const vesting_fee_gas = process.env["vesting_fee_gas"] || "100000";
+
+const vesting_fee_amount = process.env["vesting_fee_amount"] || "500000";
+const vesting_fee_gas = process.env["vesting_fee_gas"] || "2000000";
+
+const next_epoch_fee_amount = process.env["next_epoch_fee_amount"] || "250000";
+const next_epoch_fee_gas = process.env["next_epoch_fee_gas"] || "100000";
 
 const mongodbName: string = process.env["mongodbName"];
 const mongodbUrl: string = process.env["mongodbUrl"];
@@ -95,8 +100,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         });
 
     const dbCollection = client.db(mongodbName).collection("vesting_log");
-
-
+    
     let fee = create_fee(vesting_fee_amount, vesting_fee_gas);
 
     let call = true;
@@ -134,6 +138,26 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         try {
             logs.push(`Calling with fees ${JSON.stringify(fee)}`)
             vest_result = await signingCosmWasmClient.execute(RPTContractAddress, { vest: {} }, undefined, undefined, fee);
+
+            //wait 15s
+            await new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve(null);
+                }, 15000)
+            });
+
+            //check if RPT was vested
+            const status = await signingCosmWasmClient.queryContractSmart(MGMTContractAddress, {
+                progress: {
+                    address: RPTContractAddress,
+                    time: Math.floor(Date.now() / 1000)
+                }
+            });
+            //don't call epoch if not vested
+            if (status.progress.claimed !== status.progress.unlocked) {
+                vest_success = false;
+                throw new Error('Vest call went through but not vested');
+            }
             logs.push('Successfully vested RPT');
             vest_fee = JSON.parse(JSON.stringify(fee));
             vest_success = true;
@@ -151,7 +175,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             } else if (e.toString().indexOf("account sequence mismatch") > -1) {
                 //do nothing, retry
             } else {
-                //call failed to due possible node issues, if vest_success === true then one of the epoch calls failed
+                //call failed to due possible node issues
                 call = false;
             }
         }
@@ -159,7 +183,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     if (vest_success) {
         await new Promise((resolve) => {
-            fee = create_fee(vesting_fee_amount, vesting_fee_gas);
+            fee = create_fee(next_epoch_fee_amount, next_epoch_fee_gas);
             eachLimit(poolsV3, 1, async (p, cb) => {
                 let next_epoch;
                 let retries = 1;
