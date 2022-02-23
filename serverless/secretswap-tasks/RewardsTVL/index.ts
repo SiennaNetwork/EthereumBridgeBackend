@@ -135,21 +135,21 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         }
     );
     const db = await client.db(`${mongodbName}`);
-    const pools: any[] = await db.collection("rewards_data").find({}).toArray().catch(
+    const pools: any[] = await db.collection("rewards_data").find({}).limit(1000).toArray().catch(
         (err: any) => {
             context.log(err);
             throw new Error("Failed to get rewards from collection");
         });
 
 
-    let tokens = await db.collection("token_pairing").find({}).limit(100).toArray().catch(
+    let tokens = await db.collection("token_pairing").find({}).limit(1000).toArray().catch(
         (err: any) => {
             context.log(err);
             throw new Error("Failed to get tokens from collection");
         }
     );
 
-    const secretTokens = await db.collection("secret_tokens").find({}).limit(100).toArray().catch(
+    const secretTokens = await db.collection("secret_tokens").find({}).limit(1000).toArray().catch(
         (err: any) => {
             context.log(err);
             throw new Error("Failed to get tokens from collection");
