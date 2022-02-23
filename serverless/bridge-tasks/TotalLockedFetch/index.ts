@@ -201,7 +201,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         );
     const db = await client.db(`${process.env["mongodbName"]}`);
 
-    const tokens = await db.collection("token_pairing").find({}).limit(100).toArray().catch(
+    const tokens = await db.collection("token_pairing").find({}).limit(1000).toArray().catch(
         async (err: any) => {
             context.log(err);
             await client.close();
