@@ -162,7 +162,8 @@ class CoinGeckoOracle implements PriceOracle {
         "sUST": "terrausd",
         "sDVPN": "sentinel",
         "SHD": "shade-protocol",
-        "ALTER": "alter"
+        "ALTER": "alter",
+        "SHUAHUA": "shuahua"
     }
 
     symbolToID = symbol => {
@@ -175,7 +176,7 @@ class CoinGeckoOracle implements PriceOracle {
             mapLimit(symbols, 1, async (symbol, cb) => {
                 const coinGeckoID = this.symbolToID(symbol);
                 if (!coinGeckoID) {
-                    cb(null, {
+                    return cb(null, {
                         symbol,
                         price: undefined
                     });
@@ -192,7 +193,7 @@ class CoinGeckoOracle implements PriceOracle {
                         throw new Error(`Network response was not ok. Status: ${priceRelative.status}`);
                     }
                 } catch {
-                    cb(null, {
+                    return cb(null, {
                         symbol,
                         price: undefined
                     });
@@ -263,15 +264,12 @@ const fetchPrices = async function (context: Context, db, client: MongoClient, c
         throw new Error("Failed to get symbol for token");
     }
 
-    context.log(symbols);
-
     const averagePrices: PriceResult[] = [];
     let prices: PriceResult[][];
     try {
         prices = await Promise.all(oracles.map(
             async o => (await o.getPrices(symbols, context)).filter(p => !isNaN(Number(p.price)))
         ));
-        context.log(prices);
     } catch (e) {
         await client.close();
     }
