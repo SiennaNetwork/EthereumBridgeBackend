@@ -122,6 +122,11 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                     $avg: "$total_value_locked"
                 }
             }
+        },
+        {
+            $sort: {
+                date: 1
+            }
         }]);
     });
 
