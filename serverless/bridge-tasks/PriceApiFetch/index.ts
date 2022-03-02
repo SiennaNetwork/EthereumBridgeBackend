@@ -234,11 +234,11 @@ interface PriceResult {
 // 25/11/2021 - disabled the constant price oracle as it's not used
 const oracles: PriceOracle[] = [new CoinGeckoOracle, /*new ConstantPriceOracle*/];
 
-const uniLPPrefix = 'UNILP';
+const uniLPPrefix = "UNILP";
 
-const LPPrefix = 'lp';
+const LPPrefix = "lp";
 
-const fetchPrices = async function (context: Context, db, client: MongoClient, collectionName: String): Promise<void[]> {
+const fetchPrices = async function (context: Context, db, client: MongoClient, collectionName: string): Promise<void[]> {
 
     const tokens = await db.collection(collectionName).find({}).limit(1000).toArray().catch(
         async (err: any) => {
@@ -254,7 +254,7 @@ const fetchPrices = async function (context: Context, db, client: MongoClient, c
     // the split '(' handles the (BSC) tokens
     try {
         symbols = tokens
-            .map(t => t.display_props.symbol.split('(')[0])
+            .map(t => t.display_props.symbol.split("(")[0])
             .filter(t => !t.startsWith(LPPrefix))
             .filter(t => !t.startsWith(uniLPPrefix))
             .filter(t => !t.startsWith("SEFI"));
@@ -298,7 +298,7 @@ const fetchPrices = async function (context: Context, db, client: MongoClient, c
         averagePrices.filter((p: any) => {
             return !isNaN(p.price);
         }).map(async p => {
-            await db.collection(collectionName).updateMany({ "display_props.symbol": new RegExp(`^(?!${LPPrefix}).*${p.symbol}`, 'i') }, { $set: { price: p.price } });
+            await db.collection(collectionName).updateMany({ "display_props.symbol": new RegExp(`^(?!${LPPrefix}).*${p.symbol}`, "i") }, { $set: { price: p.price } });
         })).catch(
             async (err) => {
                 context.log(err);
@@ -308,7 +308,7 @@ const fetchPrices = async function (context: Context, db, client: MongoClient, c
 
     // const timeStamp = new Date().toISOString();
     // context.log("JavaScript timer trigger function ran!", timeStamp);
-}
+};
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
