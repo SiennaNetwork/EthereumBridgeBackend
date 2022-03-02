@@ -17,6 +17,7 @@ import * as swapController from "./controllers/swaps";
 import * as tokenController from "./controllers/tokens";
 import * as opController from "./controllers/operations";
 import * as rewardsController from "./controllers/rewards";
+import * as projectsController from "./controllers/projects";
 import * as secretSwapPairsController from "./controllers/secretswap_pairs";
 import * as secretSwapPoolsController from "./controllers/secretswap_pools";
 import * as signerHealthController from "./controllers/signer_health";
@@ -106,6 +107,10 @@ app.get("/operations/:operation", opController.getOperationValidator, opControll
 
 app.get("/rewards/", rewardsController.getRewardPools);
 app.get("/rewards/:pool", rewardsController.getPoolValidator, rewardsController.getPool);
+
+app.get("/projects/", projectsController.getProjects);
+app.post("/projects/", projectsController.initState);
+app.get("/projects/:projectId", projectsController.getProjectValidator, projectsController.getProject);
 
 app.get("/secretswap_pairs/", secretSwapPairsController.getSecretSwapPairs);
 app.get("/siennaswap_pools/", secretSwapPoolsController.getSecretSwapPools);
