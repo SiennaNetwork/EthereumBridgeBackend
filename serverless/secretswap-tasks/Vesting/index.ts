@@ -100,7 +100,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         });
 
     const dbCollection = client.db(mongodbName).collection("vesting_log");
-    
+
     let fee = create_fee(vesting_fee_amount, vesting_fee_gas);
 
     let call = true;
@@ -114,6 +114,16 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const epoch_success_call = {};
 
     const poolsV3 = pools.filter(pool => pool.version === "3");
+
+    const checkIfVested = async (): Promise<boolean> => {
+        const status = await signingCosmWasmClient.queryContractSmart(MGMTContractAddress, {
+            progress: {
+                address: RPTContractAddress,
+                time: Math.floor(Date.now() / 1000)
+            }
+        });
+        return status.progress.claimed === status.progress.unlocked;
+    }
 
     const parseFeeError = (e: string): Fee => {
         try {
@@ -147,14 +157,9 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             });
 
             //check if RPT was vested
-            const status = await signingCosmWasmClient.queryContractSmart(MGMTContractAddress, {
-                progress: {
-                    address: RPTContractAddress,
-                    time: Math.floor(Date.now() / 1000)
-                }
-            });
+            const status = await checkIfVested();
             //don't call epoch if not vested
-            if (status.progress.claimed !== status.progress.unlocked) {
+            if (!status) {
                 vest_success = false;
                 throw new Error('Vest call went through but not vested');
             }
@@ -164,15 +169,31 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             //vest was successful, stop calling
             call = false;
         } catch (e) {
+            //check if vest call was successfull even though we ended up in here...
+            //wait 15s
+            await new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve(null);
+                }, 15000)
+            });
+            const status = await checkIfVested();
+            if (status) {
+                call = false;
+                vest_success = true;
+                logs.push(`Successfully vested even though we got an error: ${e.toString()}`)
+                return;
+            }
             vest_error = e;
             //insufficient fees; got: 5000ucosm required: 50000uscrt
             //out of gas: out of gas in location: ReadFlat; gasWanted: 5100, gasUsed: 6069.
             logs.push(`Vesting Error: ${e.toString()}`)
             if (e.toString().indexOf("insufficient fee") > -1 || e.toString().indexOf("out of gas in location") > -1) {
                 fee = parseFeeError(e.toString());
-            } else if (e.toString().indexOf("signature verification failed") > -1) {
-                //do nothing, retry
-            } else if (e.toString().indexOf("account sequence mismatch") > -1) {
+            } else if (
+                e.toString().indexOf("signature verification failed") > -1 ||
+                e.toString().indexOf("account sequence mismatch") > -1 ||
+                e.toString().indexOf("connect ETIMEDOUT") > -1
+            ) {
                 //do nothing, retry
             } else {
                 //call failed to due possible node issues
