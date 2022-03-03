@@ -15,7 +15,7 @@ interface Price {
     symbol: string;
 }
 
-const symbols = ['SHD', 'SHUAHUA'];
+const symbols = process.env["siennaswapSymbols"]?.split(",") || [];
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
     const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`,
