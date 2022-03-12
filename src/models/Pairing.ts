@@ -6,6 +6,7 @@ export interface PairingDocument extends mongoose.Document {
     name: string;
     decimals: number;
     symbol: string;
+    type: string;
     dst_address: string;
     dst_coin: string;
     dst_network: string;
@@ -28,6 +29,7 @@ export const pairingSchema = new mongoose.Schema({
     src_network: String,
     name: String,
     symbol: String,
+    type: String,
     decimals: {
         type: Number,
         default: 18,
