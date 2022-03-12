@@ -169,39 +169,44 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             //vest was successful, stop calling
             call = false;
         } catch (e) {
-            //check if vest call was successfull even though we ended up in here...
-            //wait 15s
-            await new Promise((resolve) => {
-                setTimeout(() => {
-                    resolve(null);
-                }, 15000)
-            });
-            const status = await checkIfVested();
-            if (status) {
-                call = false;
-                vest_success = true;
-                logs.push(`Successfully vested even though we got an error: ${e.toString()}`)
-                return;
-            }
             vest_error = e;
-            //insufficient fees; got: 5000ucosm required: 50000uscrt
-            //out of gas: out of gas in location: ReadFlat; gasWanted: 5100, gasUsed: 6069.
-            logs.push(`Vesting Error: ${e.toString()}`)
-            if (e.toString().indexOf("insufficient fee") > -1 || e.toString().indexOf("out of gas in location") > -1) {
-                fee = parseFeeError(e.toString());
-            } else if (
-                e.toString().indexOf("signature verification failed") > -1 ||
-                e.toString().indexOf("account sequence mismatch") > -1 ||
-                e.toString().indexOf("connect ETIMEDOUT") > -1
-            ) {
-                //do nothing, retry
-            } else {
-                //call failed to due possible node issues
+            //check if RPT was already vested so we don't increment the clocks
+            if (e.toString().toLowerCase().indexOf('nothing to claim right now') > -1) {
                 call = false;
+            } else {
+                //check if vest call was successfull even though we ended up in here...
+                //wait 15s
+                await new Promise((resolve) => {
+                    setTimeout(() => {
+                        resolve(null);
+                    }, 15000)
+                });
+                const status = await checkIfVested();
+                if (status) {
+                    call = false;
+                    vest_success = true;
+                    logs.push(`Successfully vested even though we got an error: ${e.toString()}`)
+                    return;
+                }
+                //insufficient fees; got: 5000ucosm required: 50000uscrt
+                //out of gas: out of gas in location: ReadFlat; gasWanted: 5100, gasUsed: 6069.
+                logs.push(`Vesting Error: ${e.toString()}`)
+                if (e.toString().indexOf("insufficient fee") > -1 || e.toString().indexOf("out of gas in location") > -1) {
+                    fee = parseFeeError(e.toString());
+                } else if (
+                    e.toString().indexOf("signature verification failed") > -1 ||
+                    e.toString().indexOf("account sequence mismatch") > -1 ||
+                    e.toString().indexOf("connect ETIMEDOUT") > -1
+                ) {
+                    //do nothing, retry
+                } else {
+                    //call failed to due possible node issues
+                    call = false;
+                }
             }
         }
     }
-
+    
     if (vest_success) {
         await new Promise((resolve) => {
             fee = create_fee(next_epoch_fee_amount, next_epoch_fee_gas);
