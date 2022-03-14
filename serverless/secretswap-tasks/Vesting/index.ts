@@ -206,24 +206,21 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             }
         }
     }
-    
+
     if (vest_success) {
         await new Promise((resolve) => {
             fee = create_fee(next_epoch_fee_amount, next_epoch_fee_gas);
             eachLimit(poolsV3, 1, async (p, cb) => {
-                let next_epoch;
-                let retries = 1;
+                const next_epoch = moment().diff(moment(p.created), 'days');
+                let retries = 0;
                 whilst(
-                    //keep trying until the call is successful
+                    //keep trying until the call is successful with up to 5 retires
                     (callback) => callback(null, !epoch_success_call[p.rewards_contract]),
                     async (callback) => {
                         try {
-                            if (!next_epoch) {
-                                const pool_info = await signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } });
-                                next_epoch = pool_info.rewards.pool_info.clock.number + 1;
-                            }
                             const result = await signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch } } }, undefined, undefined, fee);
                             epoch_success_call[p.rewards_contract] = true;
+                            logs.push(`Increased clock for: ${p.rewards_contract} to ${next_epoch}`);
                             nextepoch_log.push({ contract: p.rewards_contract, result, clock: next_epoch, fee });
                         } catch (e) {
                             if (e.toString().indexOf("insufficient fee") > -1 || e.toString().indexOf("out of gas in location") > -1) {
@@ -247,10 +244,13 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                                 retries++;
                             }
                         } finally {
+                            if (retries > 5) {
+                                logs.push(`Failed to increase clock for: ${p.rewards_contract} to ${next_epoch} in ${retries} tries`);
+                                epoch_success_call[p.rewards_contract] = true;
+                            }
                             callback();
                         }
                     }, () => {
-                        logs.push(`Increased clock for: ${p.rewards_contract} to ${next_epoch} with ${retries} retries`);
                         cb();
                     }
                 );
