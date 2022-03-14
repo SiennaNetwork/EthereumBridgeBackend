@@ -12,10 +12,14 @@ export interface RewardsDocument extends mongoose.Document {
      * Total amount locked by all participants.
      */
     total_locked: number;
-     /**
-     * The rewards contract address.
-     */
+    /**
+    * The rewards contract address.
+    */
     rewards_contract: string;
+    /**
+     * The UTC date on which the reward pool was created as YYYY-MM-DD based on which the pool clock number is increased (as in days since this date)
+     */
+    created: string;
 }
 
 
@@ -43,7 +47,11 @@ export const rewardsSchema = new mongoose.Schema({
     /**
      * The rewards contract address.
      */
-    rewards_contract: String
+    rewards_contract: String,
+    /**
+     * The UTC date on which the reward pool was created as YYYY-MM-DD based on which the pool clock number is increased (as in days since this date)
+     */
+    created: String
 }, { collection: "rewards_data" });
 
 export const Rewards = mongoose.model<RewardsDocument>("rewards", rewardsSchema);
