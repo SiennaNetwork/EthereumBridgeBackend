@@ -26,6 +26,7 @@
     "mongodb": "^3.6.6",
     "node-fetch": "^2.6.1",
     "secretjs": "0.17.5",
+    "siennajs": "^0.2.0-beta.0",
     "underscore": "^1.13.1"
   }
 }
