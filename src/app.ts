@@ -24,6 +24,7 @@ import * as claimsController from "./controllers/claims";
 import * as cashbackController from "./controllers/cashback_stats";
 import * as votesController from "./controllers/votes";
 import * as siennaTokenStatisticsController from "./controllers/sienna_token_statistics";
+import * as siennaLendStatisticsController from "./controllers/sienna_lend_statistics";
 import * as siennaMarketPriceController from "./controllers/sienna_market_price";
 import *  as alterController from "./controllers/alter";
 import *  as vestingLogController from "./controllers/vesting_log";
@@ -129,6 +130,8 @@ app.post("/secret_votes/finalize/:voteAddr", votesController.finalizeVote);
 app.get("/sienna_token_statistics/", siennaTokenStatisticsController.getStatistics);
 
 app.get("/sienna_token_historical_data/", siennaTokenStatisticsController.historicalDataQueryValidator, siennaTokenStatisticsController.getHistoricalData);
+
+app.get("/sienna_lend_historical_data/", siennaLendStatisticsController.historicalDataQueryValidator, siennaLendStatisticsController.getHistoricalData);
 
 app.get("/sienna_market_price/", siennaMarketPriceController.getPrice);
 
