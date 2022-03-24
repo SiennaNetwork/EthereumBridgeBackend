@@ -3,9 +3,9 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import { CosmWasmClient, EnigmaUtils } from "secretjs";
-import { whilst, mapLimit } from 'async'
+import { whilst, mapLimit } from "async";
 import Decimal from "decimal.js";
-import { Market } from 'siennajs/dist/lib/lend'
+import { Market } from "siennajs/dist/lib/lend";
 
 const secretNodeURL = process.env["secretNodeURL"];
 const mongodbUrl = process.env["mongodbUrl"];
@@ -44,19 +44,34 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             }
         );
     });
-
+    
     const block = (await queryClient.getBlock()).header.height;
     const data = await new Promise((resolve) => {
         mapLimit(markets, 1, async (market, callback) => {
             try {
                 const underlying_asset = await queryClient.queryContractSmart(market.contract.address, { underlying_asset: {} });
                 const exchange_rate = (await queryClient.queryContractSmart(underlying_asset.address, { exchange_rate: {} })).exchange_rate;
-
                 const borrow_rate = new Decimal(await queryClient.queryContractSmart(market.contract.address, { borrow_rate: {} })).toNumber();
                 const supply_rate = new Decimal(await queryClient.queryContractSmart(market.contract.address, { supply_rate: {} })).toNumber();
-                const borrowers = await queryClient.queryContractSmart(market.contract.address, { borrowers: { block } });
+                const borrowers = await new Promise((resolve) => {
+                    let call = true, start_after = 0, borrowers = [];
+                    whilst(
+                        (callback) => callback(null, call),
+                        async (callback) => {
+                            const result = await queryClient.queryContractSmart(market.contract.address, { borrowers: { block, start_after, limit: 10 } });
+                            if (!result || !result.length) {
+                                call = false;
+                                return callback();
+                            }
+                            start_after += result.length;
+                            borrowers = borrowers.concat(result);
+                            callback();
+                        }, () => {
+                            resolve(borrowers);
+                        }
+                    );
+                });
                 const state = await queryClient.queryContractSmart(market.contract.address, { state: {} });
-
                 callback(null, {
                     market: market.contract.address,
                     symbol: market.symbol,
@@ -69,7 +84,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     supply_rate,
                     borrowers,
                     state: {
-                        accrual_block: 1857215,
+                        accrual_block: state.accrual_block,
                         borrow_index: new Decimal(state.borrow_index).toNumber(),
                         total_borrows: new Decimal(state.total_borrows).toNumber(),
                         total_reserves: new Decimal(state.total_reserves).toNumber(),
@@ -81,14 +96,15 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                             seize_factor: new Decimal(state.config.seize_factor).toNumber(),
                         }
                     }
-                })
+                });
             } catch (e) {
-                callback()
+                callback();
             }
         }, (err, results) => {
             resolve(results.filter(res => !!res));
-        })
+        });
     });
+
     await db.collection("sienna_lend_historical_data").insertOne({
         date: new Date(),
         data
