@@ -132,6 +132,7 @@ app.get("/sienna_token_statistics/", siennaTokenStatisticsController.getStatisti
 app.get("/sienna_token_historical_data/", siennaTokenStatisticsController.historicalDataQueryValidator, siennaTokenStatisticsController.getHistoricalData);
 
 app.get("/sienna_lend_historical_data/", siennaLendStatisticsController.historicalDataQueryValidator, siennaLendStatisticsController.getHistoricalData);
+app.get("/sienna_lend_latest_data/", siennaLendStatisticsController.getLatest);
 
 app.get("/sienna_market_price/", siennaMarketPriceController.getPrice);
 

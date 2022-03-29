@@ -32,6 +32,42 @@ export const historicalDataQueryValidator = validate(checkSchema({
     }
 }));
 
+export const getLatest = async (req: Request, res: Response) => {
+    const data = await cache.get("sienna_lend_historical_data_latest", async () => {
+        return await SiennaLendStatistics.aggregate([{
+            $sort: {
+                _id: -1
+            }
+        },
+        {
+            $limit: 1
+        }, {
+            $unwind: "$data"
+        }, {
+            $group: {
+                _id: "$_id",
+                markets: { $push: "$data" },
+                total_supply: {
+                    $sum: "$data.state.total_supply"
+                },
+                total_borrows: { $sum: "$data.state.total_borrows" },
+                total_reserves: { $sum: "$data.state.total_reserves" },
+                underlying_balance: { $sum: "$data.state.underlying_balance" },
+                borrow_rate: { $avg: "$data.borrow_rate" },
+                supply_rate: { $avg: "$data.supply_rate" }
+            }
+        }]);
+    });
+
+
+    try {
+        res.json({ data: data[0] });
+    } catch (e) {
+        res.status(500);
+        res.send(`Error: ${e}`);
+    }
+};
+
 export const getHistoricalData = async (req: Request, res: Response) => {
     const periodValue = parseInt(req.query.period.toString().split(" ")[0]) as DurationInputArg1;
     const period = req.query.period.toString().split(" ")[1] as unitOfTime.DurationConstructor;
@@ -63,7 +99,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
         default:
             format = "%Y-%m-%d %H:00:00";
     }
-    const data = await cache.get("sienna_lend_historical_data_" + `${period}_${periodValue}`, async () => {
+    const data = await cache.get("sienna_lend_historical_data_" + `${period}_${periodValue}_${req.query.type}`, async () => {
         return await SiennaLendStatistics.aggregate([{
             $match: query
         },
@@ -170,6 +206,23 @@ export const getHistoricalData = async (req: Request, res: Response) => {
             $group: {
                 _id: "$date",
                 data: { $push: "$" }
+            }
+        },
+        {
+            $unwind: "$data"
+        },
+        {
+            $group: {
+                _id: "$_id",
+                markets: { $push: "$data" },
+                total_supply: {
+                    $sum: "$data.state.total_supply"
+                },
+                total_borrows: { $sum: "$data.state.total_borrows" },
+                total_reserves: { $sum: "$data.state.total_reserves" },
+                underlying_balance: { $sum: "$data.state.underlying_balance" },
+                borrow_rate: { $avg: "$data.borrow_rate" },
+                supply_rate: { $avg: "$data.supply_rate" }
             }
         },
         {
