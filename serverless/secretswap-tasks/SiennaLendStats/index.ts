@@ -51,10 +51,13 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const data = await new Promise((resolve) => {
         mapLimit(markets, 1, async (market, callback) => {
             try {
-                const token = await db.collection("token_pairing").findOne({ "display_props.symbol": market.symbol });
-                const token_price = new Decimal(token.price).toNumber();
+
                 const underlying_asset = await queryClient.queryContractSmart(market.contract.address, { underlying_asset: {} });
                 const exchange_rate = (await queryClient.queryContractSmart(underlying_asset.address, { exchange_rate: {} })).exchange_rate;
+
+
+                const token = await db.collection("token_pairing").findOne({ dst_address: underlying_asset.address });
+                const token_price = new Decimal(token.price).toNumber();
 
                 const borrow_rate = new Decimal(await queryClient.queryContractSmart(market.contract.address, { borrow_rate: {} })).toDecimalPlaces(2).toNumber();
                 const borrow_rate_usd = new Decimal(borrow_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
@@ -88,6 +91,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 callback(null, {
                     market: market.contract.address,
                     token_price: token_price,
+                    token_address: underlying_asset.address,
                     symbol: market.symbol,
                     ltv_ratio: new Decimal(market.ltv_ratio).toDecimalPlaces(2).toNumber(),
                     exchange_rate: {

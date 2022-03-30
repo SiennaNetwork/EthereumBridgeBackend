@@ -146,6 +146,9 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 token_price: {
                     $avg: "$data.token_price"
                 },
+                token_address: {
+                    $avg: "$data.token_address"
+                },
                 symbol: {
                     $first: "$data.symbol"
                 },
@@ -224,6 +227,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 market: "$_id.market",
                 symbol: "$symbol",
                 token_price: "$token_price",
+                token_address: "$token_address",
                 supply_APY: "$supply_APY",
                 borrow_APY: "$borrow_APY",
                 ltv_ratio: "$ltv_ratio",
@@ -267,6 +271,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
             $group: {
                 _id: "$_id",
                 markets: { $push: "$data" },
+                total_supply_usd: { $sum: "$data.state.total_supply_usd" },
                 total_borrows_usd: { $sum: "$data.state.total_borrows_usd" },
                 total_reserves_usd: { $sum: "$data.state.total_reserves_usd" },
                 underlying_balance_usd: { $sum: "$data.state.underlying_balance_usd" },
