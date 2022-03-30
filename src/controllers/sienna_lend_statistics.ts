@@ -259,6 +259,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
         {
             $group: {
                 _id: "$_id",
+                date: { $first: "$_id" },
                 markets: { $push: "$data" },
                 total_supply_usd: { $sum: "$data.state.total_supply_usd" },
                 total_borrows_usd: { $sum: "$data.state.total_borrows_usd" },
