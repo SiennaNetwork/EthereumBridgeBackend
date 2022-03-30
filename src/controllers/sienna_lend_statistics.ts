@@ -46,6 +46,7 @@ export const getLatest = async (req: Request, res: Response) => {
         }, {
             $group: {
                 _id: "$_id",
+                date: { $first: "$date" },
                 markets: { $push: "$data" },
                 total_supply_usd: {
                     $sum: "$data.state.total_supply_usd"
