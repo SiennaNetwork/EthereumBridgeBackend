@@ -47,14 +47,30 @@ export const getLatest = async (req: Request, res: Response) => {
             $group: {
                 _id: "$_id",
                 markets: { $push: "$data" },
-                total_supply: {
-                    $sum: "$data.state.total_supply"
+                total_supply_usd: {
+                    $sum: "$data.state.total_supply_usd"
                 },
-                total_borrows: { $sum: "$data.state.total_borrows" },
-                total_reserves: { $sum: "$data.state.total_reserves" },
-                underlying_balance: { $sum: "$data.state.underlying_balance" },
-                borrow_rate: { $avg: "$data.borrow_rate" },
-                supply_rate: { $avg: "$data.supply_rate" }
+                total_borrows_usd: {
+                    $sum: "$data.state.total_borrows_usd"
+                },
+                total_reserves_usd: {
+                    $sum: "$data.state.total_reserves_usd"
+                },
+                underlying_balance_usd: {
+                    $sum: "$data.state.underlying_balance_usd"
+                },
+                borrow_rate_usd: {
+                    $sum: "$data.borrow_rate_usd"
+                },
+                supply_rate_usd: {
+                    $sum: "$data.supply_rate_usd"
+                },
+                supply_APY: {
+                    $avg: "$data.supply_APY"
+                },
+                borrow_APY: {
+                    $avg: "$data.borrow_APY"
+                }
             }
         }]);
     });
@@ -127,17 +143,32 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 market: {
                     $first: "$data.market"
                 },
+                token_price: {
+                    $avg: "$data.token_price"
+                },
                 symbol: {
                     $first: "$data.symbol"
                 },
                 ltv_ratio: {
                     $avg: "$data.ltv_ratio"
                 },
+                supply_APY: {
+                    $avg: "$data.supply_APY"
+                },
+                borrow_APY: {
+                    $avg: "$data.borrow_APY"
+                },
                 borrow_rate: {
                     $avg: "$data.borrow_rate"
                 },
                 supply_rate: {
                     $avg: "$data.supply_rate"
+                },
+                borrow_rate_usd: {
+                    $avg: "$data.borrow_rate_usd"
+                },
+                supply_rate_usd: {
+                    $avg: "$data.supply_rate_usd"
                 },
                 exchange_rate_rate: {
                     $avg: "$data.exchange_rate.rate"
@@ -151,14 +182,26 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 state_total_borrows: {
                     $avg: "$data.state.total_borrows"
                 },
+                state_total_borrows_usd: {
+                    $avg: "$data.state.total_borrows_usd"
+                },
                 state_total_reserves: {
                     $avg: "$data.state.total_reserves"
+                },
+                state_total_reserves_usd: {
+                    $avg: "$data.state.total_reserves_usd"
                 },
                 state_total_supply: {
                     $avg: "$data.state.total_supply"
                 },
+                state_total_supply_usd: {
+                    $avg: "$data.state.total_supply_usd"
+                },
                 state_underlying_balance: {
                     $avg: "$data.state.underlying_balance"
+                },
+                state_underlying_balance_usd: {
+                    $avg: "$data.state.underlying_balance_usd"
                 },
                 state_config_initial_exchange_rate: {
                     $avg: "$data.state.config.initial_exchange_rate"
@@ -180,9 +223,14 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 date: "$_id.date",
                 market: "$_id.market",
                 symbol: "$symbol",
+                token_price: "$token_price",
+                supply_APY: "$supply_APY",
+                borrow_APY: "$borrow_APY",
                 ltv_ratio: "$ltv_ratio",
                 borrow_rate: "$borrow_rate",
                 supply_rate: "$supply_rate",
+                borrow_rate_usd: "$borrow_rate_usd",
+                supply_rate_usd: "$supply_rate_usd",
                 borrowers: "$borrowers",
                 exchange_rate: {
                     rate: "$exchange_rate_rate",
@@ -191,9 +239,13 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 state: {
                     borrow_index: "$state_borrow_index",
                     total_borrows: "$state_total_borrows",
+                    total_borrows_usd: "$state_total_borrows_usd",
                     total_reserves: "$state_total_reserves",
+                    total_reserves_usd: "$state_total_reserves_usd",
                     total_supply: "$state_total_supply",
+                    total_supply_usd: "$state_total_supply_usd",
                     underlying_balance: "$state_underlying_balance",
+                    underlying_balance_usd: "$state_underlying_balance_usd",
                     config: {
                         initial_exchange_rate: "$state_config_initial_exchange_rate",
                         reserve_factor: "$state_config_reserve_factor",
@@ -215,14 +267,13 @@ export const getHistoricalData = async (req: Request, res: Response) => {
             $group: {
                 _id: "$_id",
                 markets: { $push: "$data" },
-                total_supply: {
-                    $sum: "$data.state.total_supply"
-                },
-                total_borrows: { $sum: "$data.state.total_borrows" },
-                total_reserves: { $sum: "$data.state.total_reserves" },
-                underlying_balance: { $sum: "$data.state.underlying_balance" },
-                borrow_rate: { $avg: "$data.borrow_rate" },
-                supply_rate: { $avg: "$data.supply_rate" }
+                total_borrows_usd: { $sum: "$data.state.total_borrows_usd" },
+                total_reserves_usd: { $sum: "$data.state.total_reserves_usd" },
+                underlying_balance_usd: { $sum: "$data.state.underlying_balance_usd" },
+                borrow_rate_usd: { $sum: "$data.borrow_rate_usd" },
+                supply_rate_usd: { $sum: "$data.supply_rate_usd" },
+                supply_APY: { $avg: "$data.supply_APY" },
+                borrow_APY: { $avg: "$data.borrow_APY" },
             }
         },
         {

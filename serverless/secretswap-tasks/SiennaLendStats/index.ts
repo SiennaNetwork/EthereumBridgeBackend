@@ -12,6 +12,8 @@ const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
 const OVERSEER_ADDRESS = process.env["OVERSEER_ADDRESS"];
 
+const BLOCK_TIME = 6;
+
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
     if (!OVERSEER_ADDRESS) return;
@@ -44,15 +46,26 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             }
         );
     });
-    
+
     const block = (await queryClient.getBlock()).header.height;
     const data = await new Promise((resolve) => {
         mapLimit(markets, 1, async (market, callback) => {
             try {
+                const token = await db.collection("token_pairing").findOne({ "display_props.symbol": market.symbol });
+                const token_price = new Decimal(token.price).toNumber();
                 const underlying_asset = await queryClient.queryContractSmart(market.contract.address, { underlying_asset: {} });
                 const exchange_rate = (await queryClient.queryContractSmart(underlying_asset.address, { exchange_rate: {} })).exchange_rate;
-                const borrow_rate = new Decimal(await queryClient.queryContractSmart(market.contract.address, { borrow_rate: {} })).toNumber();
-                const supply_rate = new Decimal(await queryClient.queryContractSmart(market.contract.address, { supply_rate: {} })).toNumber();
+
+                const borrow_rate = new Decimal(await queryClient.queryContractSmart(market.contract.address, { borrow_rate: {} })).toDecimalPlaces(2).toNumber();
+                const borrow_rate_usd = new Decimal(borrow_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
+
+                const supply_rate = new Decimal(await queryClient.queryContractSmart(market.contract.address, { supply_rate: {} })).toDecimalPlaces(2).toNumber();
+                const supply_rate_usd = new Decimal(supply_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
+
+                const borrow_APY = new Decimal(borrow_rate).div(Decimal.pow(10, token.decimals).toNumber()).mul(10 * 60 * 24 * 365).add(1).pow(365).div(365).mul(100).toDecimalPlaces(2).toNumber();
+                const supply_APY = new Decimal(supply_rate).div(Decimal.pow(10, token.decimals).toNumber()).mul(10 * 60 * 24 * 365).add(1).pow(365).div(365).mul(100).toDecimalPlaces(2).toNumber();
+
+
                 const borrowers = await new Promise((resolve) => {
                     let call = true, start_after = 0, borrowers = [];
                     whilst(
@@ -74,30 +87,49 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 const state = await queryClient.queryContractSmart(market.contract.address, { state: {} });
                 callback(null, {
                     market: market.contract.address,
+                    token_price: token_price,
                     symbol: market.symbol,
-                    ltv_ratio: new Decimal(market.ltv_ratio).toNumber(),
+                    ltv_ratio: new Decimal(market.ltv_ratio).toDecimalPlaces(2).toNumber(),
                     exchange_rate: {
-                        rate: new Decimal(exchange_rate.rate).toNumber(),
+                        rate: new Decimal(exchange_rate.rate).toDecimalPlaces(2).toNumber(),
                         denom: exchange_rate.denom
                     },
+                    borrow_APY,
+                    supply_APY,
+
                     borrow_rate,
+                    borrow_rate_usd,
+
                     supply_rate,
+                    supply_rate_usd,
+
                     borrowers,
+
                     state: {
                         accrual_block: state.accrual_block,
-                        borrow_index: new Decimal(state.borrow_index).toNumber(),
-                        total_borrows: new Decimal(state.total_borrows).toNumber(),
-                        total_reserves: new Decimal(state.total_reserves).toNumber(),
-                        total_supply: new Decimal(state.total_supply).toNumber(),
-                        underlying_balance: new Decimal(state.underlying_balance).toNumber(),
+                        borrow_index: new Decimal(state.borrow_index).toDecimalPlaces(2).toNumber(),
+                        total_borrows: new Decimal(state.total_borrows).toDecimalPlaces(2).toNumber(),
+
+                        total_borrows_usd: new Decimal(state.total_borrows).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber(),
+                        total_reserves: new Decimal(state.total_reserves).toDecimalPlaces(2).toNumber(),
+
+                        total_reserves_usd: new Decimal(state.total_reserves).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber(),
+                        total_supply: new Decimal(state.total_supply).toDecimalPlaces(2).toNumber(),
+
+                        total_supply_usd: new Decimal(state.total_supply).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber(),
+
+                        underlying_balance: new Decimal(state.underlying_balance).toDecimalPlaces(2).toNumber(),
+                        underlying_balance_usd: new Decimal(state.underlying_balance).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber(),
+
                         config: {
-                            initial_exchange_rate: new Decimal(state.config.initial_exchange_rate).toNumber(),
-                            reserve_factor: new Decimal(state.config.reserve_factor).toNumber(),
-                            seize_factor: new Decimal(state.config.seize_factor).toNumber(),
+                            initial_exchange_rate: new Decimal(state.config.initial_exchange_rate).toDecimalPlaces(2).toNumber(),
+                            reserve_factor: new Decimal(state.config.reserve_factor).toDecimalPlaces(2).toNumber(),
+                            seize_factor: new Decimal(state.config.seize_factor).toDecimalPlaces(2).toNumber(),
                         }
                     }
                 });
             } catch (e) {
+                context.log(e);
                 callback();
             }
         }, (err, results) => {
