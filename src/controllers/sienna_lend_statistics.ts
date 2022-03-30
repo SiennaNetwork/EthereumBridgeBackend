@@ -148,7 +148,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                     $avg: "$data.token_price"
                 },
                 token_address: {
-                    $avg: "$data.token_address"
+                    $first: "$data.token_address"
                 },
                 symbol: {
                     $first: "$data.symbol"
