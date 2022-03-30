@@ -173,11 +173,8 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 supply_rate_usd: {
                     $avg: "$data.supply_rate_usd"
                 },
-                exchange_rate_rate: {
-                    $avg: "$data.exchange_rate.rate"
-                },
-                exchange_rate_denom: {
-                    $first: "$data.exchange_rate.denom"
+                exchange_rate: {
+                    $avg: "$data.exchange_rate"
                 },
                 state_borrow_index: {
                     $avg: "$data.state.borrow_index"
@@ -236,10 +233,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 borrow_rate_usd: "$borrow_rate_usd",
                 supply_rate_usd: "$supply_rate_usd",
                 borrowers: "$borrowers",
-                exchange_rate: {
-                    rate: "$exchange_rate_rate",
-                    denom: "$exchange_rate_denom"
-                },
+                exchange_rate: "$exchange_rate",
                 state: {
                     borrow_index: "$state_borrow_index",
                     total_borrows: "$state_total_borrows",
