@@ -26,8 +26,9 @@ import * as votesController from "./controllers/votes";
 import * as siennaTokenStatisticsController from "./controllers/sienna_token_statistics";
 import * as siennaLendStatisticsController from "./controllers/sienna_lend_statistics";
 import * as siennaMarketPriceController from "./controllers/sienna_market_price";
-import *  as alterController from "./controllers/alter";
-import *  as vestingLogController from "./controllers/vesting_log";
+import * as alterController from "./controllers/alter";
+import * as vestingLogController from "./controllers/vesting_log";
+import * as siennaKnightsController from "./controllers/sienna_knights";
 
 import config from "./util/config";
 
@@ -140,4 +141,7 @@ app.get("/alter/", alterController.getAlter);
 
 app.get("/vesting_log/", vestingLogController.getLog);
 
+
+app.get("/beta", siennaKnightsController.addressValidator, siennaKnightsController.getAddress);
+app.post("/beta", siennaKnightsController.addressValidator, siennaKnightsController.addAddress);
 export default app;
