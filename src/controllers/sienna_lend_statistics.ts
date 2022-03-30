@@ -211,11 +211,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 },
                 state_config_seize_factor: {
                     $avg: "$data.state.config.seize_factor"
-                },
-                borrowers: {
-                    $last: "$data.borrowers"
                 }
-
             }
         },
         {
@@ -232,7 +228,6 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 supply_rate: "$supply_rate",
                 borrow_rate_usd: "$borrow_rate_usd",
                 supply_rate_usd: "$supply_rate_usd",
-                borrowers: "$borrowers",
                 exchange_rate: "$exchange_rate",
                 state: {
                     borrow_index: "$state_borrow_index",

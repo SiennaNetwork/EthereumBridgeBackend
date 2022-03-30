@@ -12,9 +12,6 @@ const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
 const OVERSEER_ADDRESS = process.env["OVERSEER_ADDRESS"];
 
-const BLOCK_TIME = 6;
-
-
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
     if (!OVERSEER_ADDRESS) return;
     const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
@@ -47,7 +44,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         );
     });
 
-    const block = (await queryClient.getBlock()).header.height;
     const data = await new Promise((resolve) => {
         mapLimit(markets, 1, async (market, callback) => {
             try {
@@ -66,26 +62,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
                 const borrow_APY = new Decimal(borrow_rate).div(Decimal.pow(10, token.decimals).toNumber()).mul(10 * 60 * 24 * 365).add(1).pow(365).div(365).mul(100).toDecimalPlaces(2).toNumber();
                 const supply_APY = new Decimal(supply_rate).div(Decimal.pow(10, token.decimals).toNumber()).mul(10 * 60 * 24 * 365).add(1).pow(365).div(365).mul(100).toDecimalPlaces(2).toNumber();
-
-
-                const borrowers = await new Promise((resolve) => {
-                    let call = true, start_after = 0, borrowers = [];
-                    whilst(
-                        (callback) => callback(null, call),
-                        async (callback) => {
-                            const result = await queryClient.queryContractSmart(market.contract.address, { borrowers: { block, start_after, limit: 10 } });
-                            if (!result || !result.length) {
-                                call = false;
-                                return callback();
-                            }
-                            start_after += result.length;
-                            borrowers = borrowers.concat(result);
-                            callback();
-                        }, () => {
-                            resolve(borrowers);
-                        }
-                    );
-                });
                 const state = await queryClient.queryContractSmart(market.contract.address, { state: {} });
                 callback(null, {
                     market: market.contract.address,
@@ -102,9 +78,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
                     supply_rate,
                     supply_rate_usd,
-
-                    borrowers,
-
                     state: {
                         accrual_block: state.accrual_block,
                         borrow_index: new Decimal(state.borrow_index).toDecimalPlaces(2).toNumber(),
