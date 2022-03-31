@@ -5,11 +5,9 @@ import bodyParser from "body-parser";
 import lusca from "lusca";
 //import mongo from "connect-mongo";
 import mongoose from "mongoose";
-
 import cors from "cors";
 
 import bluebird from "bluebird";
-import { SESSION_SECRET } from "./util/secrets";
 import logger from "./util/logger";
 //const MongoStore = mongo(session);
 
@@ -29,6 +27,7 @@ import * as siennaMarketPriceController from "./controllers/sienna_market_price"
 import * as alterController from "./controllers/alter";
 import * as vestingLogController from "./controllers/vesting_log";
 import * as siennaKnightsController from "./controllers/sienna_knights";
+import { TLSAuth } from "./util/auth";
 
 import config from "./util/config";
 
@@ -143,5 +142,5 @@ app.get("/vesting_log/", vestingLogController.getLog);
 
 
 app.get("/beta", siennaKnightsController.addressValidator, siennaKnightsController.getAddress);
-app.post("/beta", siennaKnightsController.addressValidator, siennaKnightsController.addAddress);
+app.post("/beta", [TLSAuth, siennaKnightsController.addressValidator], siennaKnightsController.addAddress);
 export default app;

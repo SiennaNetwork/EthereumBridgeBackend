@@ -1,6 +1,6 @@
 import fs from "fs";
 
-//require("dotenv").config();
+require("dotenv").config();
 import convict from "convict";
 
 const config = convict({
@@ -9,6 +9,12 @@ const config = convict({
     default: "dev",
     arg: "nodeEnv",
     env: "NODE_ENV",
+  },
+  TLSEnabled: {
+    format: Boolean,
+    default: false,
+    arg: "TLSEnabled",
+    env: "TLS_ENABLED",
   },
   dbUser: {
     format: String,
@@ -33,6 +39,24 @@ const config = convict({
     default: 8000,
     arg: "port",
     env: "PORT",
+  },
+  CERT_SERVER_KEY: {
+    format: String,
+    default: "",
+    arg: "CERT_SERVER_KEY",
+    env: "CERT_SERVER_KEY",
+  },
+  CERT_SERVER_CRT: {
+    format: String,
+    default: "",
+    arg: "CERT_SERVER_CRT",
+    env: "CERT_SERVER_CRT",
+  },
+  CERT_CLIENT_CRT: {
+    format: String,
+    default: "",
+    arg: "CERT_CLIENT_CRT",
+    env: "CERT_CLIENT_CRT",
   },
   db: {
     format: String,
