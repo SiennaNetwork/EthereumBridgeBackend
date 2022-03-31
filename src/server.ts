@@ -15,9 +15,16 @@ app.use(errorHandler());
  */
 let server;
 
-
 if (config.TLSEnabled) {
-    const options = { key: config.CERT_SERVER_KEY, cert: config.CERT_SERVER_CRT, ca: [config.CERT_CLIENT_CRT], requestCert: true, rejectUnauthorized: false };
+    const options = {
+        key: "-----BEGIN RSA PRIVATE KEY-----\n" + config.CERT_SERVER_KEY + "\n-----END RSA PRIVATE KEY-----",
+        cert: "-----BEGIN CERTIFICATE-----\n" + config.CERT_SERVER_CRT + "\n-----END CERTIFICATE-----",
+        ca: [
+            "-----BEGIN CERTIFICATE-----\n" + config.CERT_CLIENT_CRT + "\n-----END CERTIFICATE-----"
+        ],
+        requestCert: true,
+        rejectUnauthorized: false
+    };
     server = https.createServer(options, app).listen(app.get("port"), () => {
         logger.info(`App is running at https://localhost:${app.get("port")} in ${app.get("env")} mode`);
         logger.info("  Press CTRL-C to stop\n");
