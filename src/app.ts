@@ -76,7 +76,7 @@ app.use(
 
 // Express configuration
 app.set("port", config.port || 8000);
-
+app.set("trust proxy", 1);
 app.use(compression());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
