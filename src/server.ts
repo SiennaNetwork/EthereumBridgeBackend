@@ -2,7 +2,7 @@
 import process from "process";
 import app from "./app";
 import logger from "./util/logger";
-import * as http from "https";
+import * as http from "http";
 import config from "./util/config";
 
 /**
@@ -13,28 +13,11 @@ import config from "./util/config";
 /**
  * Start Express server.
  */
-let server;
 
-if (config.TLSEnabled) {
-    const options = {
-        key: "-----BEGIN RSA PRIVATE KEY-----\n" + process.env.CERT_SERVER_KEY + "\n-----END RSA PRIVATE KEY-----",
-        cert: "-----BEGIN CERTIFICATE-----\n" + process.env.CERT_SERVER_CRT + "\n-----END CERTIFICATE-----",
-        ca: [
-            "-----BEGIN CERTIFICATE-----\n" + process.env.CERT_CLIENT_CRT + "\n-----END CERTIFICATE-----"
-        ],
-        requestCert: true,
-        rejectUnauthorized: false
-    };
-    server = http.createServer(options, app).listen(app.get("port"), () => {
-        logger.info(`App is running at https://localhost:${app.get("port")} in ${app.get("env")} mode`);
-        logger.info("  Press CTRL-C to stop\n");
-    });
-} else {
-    server = app.listen(app.get("port"), () => {
-        logger.info(`App is running at http://localhost:${app.get("port")} in ${app.get("env")} mode`);
-        logger.info("  Press CTRL-C to stop\n");
-    });
-}
+const server = app.listen(app.get("port"), () => {
+    logger.info(`App is running at http://localhost:${app.get("port")} in ${app.get("env")} mode`);
+    logger.info("  Press CTRL-C to stop\n");
+});
 
 
 process.on("SIGINT", () => {
