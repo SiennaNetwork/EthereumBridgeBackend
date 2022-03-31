@@ -2,7 +2,7 @@
 import process from "process";
 import app from "./app";
 import logger from "./util/logger";
-import * as https from "https";
+import * as http from "https";
 import config from "./util/config";
 
 /**
@@ -25,7 +25,7 @@ if (config.TLSEnabled) {
         requestCert: true,
         rejectUnauthorized: false
     };
-    server = https.createServer(options, app).listen(app.get("port"), () => {
+    server = http.createServer(options, app).listen(app.get("port"), () => {
         logger.info(`App is running at https://localhost:${app.get("port")} in ${app.get("env")} mode`);
         logger.info("  Press CTRL-C to stop\n");
     });
