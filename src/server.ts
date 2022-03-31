@@ -1,4 +1,4 @@
-import errorHandler from "errorhandler";
+//import errorHandler from "errorhandler";
 import process from "process";
 import app from "./app";
 import logger from "./util/logger";
@@ -8,7 +8,7 @@ import config from "./util/config";
 /**
  * Error Handler. Provides full stack - remove for production
  */
-app.use(errorHandler());
+//app.use(errorHandler());
 
 /**
  * Start Express server.
@@ -17,10 +17,10 @@ let server;
 
 if (config.TLSEnabled) {
     const options = {
-        key: "-----BEGIN RSA PRIVATE KEY-----\n" + config.CERT_SERVER_KEY + "\n-----END RSA PRIVATE KEY-----",
-        cert: "-----BEGIN CERTIFICATE-----\n" + config.CERT_SERVER_CRT + "\n-----END CERTIFICATE-----",
+        key: "-----BEGIN RSA PRIVATE KEY-----\n" + process.env.CERT_SERVER_KEY + "\n-----END RSA PRIVATE KEY-----",
+        cert: "-----BEGIN CERTIFICATE-----\n" + process.env.CERT_SERVER_CRT + "\n-----END CERTIFICATE-----",
         ca: [
-            "-----BEGIN CERTIFICATE-----\n" + config.CERT_CLIENT_CRT + "\n-----END CERTIFICATE-----"
+            "-----BEGIN CERTIFICATE-----\n" + process.env.CERT_CLIENT_CRT + "\n-----END CERTIFICATE-----"
         ],
         requestCert: true,
         rejectUnauthorized: false
