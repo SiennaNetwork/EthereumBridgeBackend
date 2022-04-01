@@ -6,7 +6,9 @@ export class AuthorizationHandler {
     public static authorizeClientCertificate(req: Request, res: Response, next: NextFunction): void {
         try {
             // Get header
+
             const header = req.get("X-ARR-ClientCert");
+            console.log("auth head", header);
             if (!header) throw new Error("UNAUTHORIZED");
 
             // Convert from PEM to pki.CERT
