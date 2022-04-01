@@ -10,11 +10,23 @@ const config = convict({
     arg: "nodeEnv",
     env: "NODE_ENV",
   },
-  TLSEnabled: {
-    format: Boolean,
-    default: false,
-    arg: "TLSEnabled",
-    env: "TLS_ENABLED",
+  certIssuer: {
+    format: String,
+    default: "",
+    arg: "certIssuer",
+    env: "CERT_ISSUER",
+  },
+  certSubject: {
+    format: String,
+    default: "",
+    arg: "certSubject",
+    env: "CERT_SUBJECT",
+  },
+  certFingerprint: {
+    format: String,
+    default: "",
+    arg: "certFingerprint",
+    env: "CERT_FINGERPRINT",
   },
   dbUser: {
     format: String,
@@ -39,24 +51,6 @@ const config = convict({
     default: 8000,
     arg: "port",
     env: "PORT",
-  },
-  CERT_SERVER_KEY: {
-    format: String,
-    default: "",
-    arg: "CERT_SERVER_KEY",
-    env: "CERT_SERVER_KEY",
-  },
-  CERT_SERVER_CRT: {
-    format: String,
-    default: "",
-    arg: "CERT_SERVER_CRT",
-    env: "CERT_SERVER_CRT",
-  },
-  CERT_CLIENT_CRT: {
-    format: String,
-    default: "",
-    arg: "CERT_CLIENT_CRT",
-    env: "CERT_CLIENT_CRT",
   },
   db: {
     format: String,

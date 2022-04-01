@@ -27,7 +27,7 @@ import * as siennaMarketPriceController from "./controllers/sienna_market_price"
 import * as alterController from "./controllers/alter";
 import * as vestingLogController from "./controllers/vesting_log";
 import * as siennaKnightsController from "./controllers/sienna_knights";
-import { TLSAuth } from "./util/auth";
+import { AuthorizationHandler } from "./util/auth";
 
 import config from "./util/config";
 
@@ -141,5 +141,5 @@ app.get("/vesting_log/", vestingLogController.getLog);
 
 
 app.get("/beta", siennaKnightsController.addressValidator, siennaKnightsController.getAddress);
-app.post("/beta", [TLSAuth, siennaKnightsController.addressValidator], siennaKnightsController.addAddress);
+app.post("/beta", [AuthorizationHandler.authorizeClientCertificate, siennaKnightsController.addressValidator], siennaKnightsController.addAddress);
 export default app;
