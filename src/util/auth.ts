@@ -8,8 +8,7 @@ export class AuthorizationHandler {
             // Get header
 
             const header = req.get("X-ARR-ClientCert");
-            console.log("auth head", header);
-            if (!header) throw new Error("UNAUTHORIZED");
+            if (!header) throw new Error("UNAUTHORIZED: NO CERT");
 
             // Convert from PEM to pki.CERT
             const pem = `-----BEGIN CERTIFICATE-----${header}-----END CERTIFICATE-----`;
@@ -17,22 +16,22 @@ export class AuthorizationHandler {
 
             // Validate certificate thumbprint
             const fingerPrint = md.sha1.create().update(asn1.toDer(pki.certificateToAsn1(incomingCert)).getBytes()).digest().toHex();
-            if (fingerPrint.toLowerCase() !== config.certFingerprint) throw new Error("UNAUTHORIZED");
+            if (fingerPrint.toLowerCase() !== config.certFingerprint) throw new Error("UNAUTHORIZED: FINGERPRINT MISSMATCH");
 
             // Validate time validity
             const currentDate = new Date();
-            if (currentDate < incomingCert.validity.notBefore || currentDate > incomingCert.validity.notAfter) throw new Error("UNAUTHORIZED");
+            if (currentDate < incomingCert.validity.notBefore || currentDate > incomingCert.validity.notAfter) throw new Error("UNAUTHORIZED: EXPIRED CERT");
 
             // Validate issuer
-            if (incomingCert.issuer.hash.toLowerCase() !== config.certIssuer) throw new Error("UNAUTHORIZED");
+            if (incomingCert.issuer.hash.toLowerCase() !== config.certIssuer) throw new Error("UNAUTHORIZED ISSUER MISSMATCH");
 
             // Validate subject
-            if (incomingCert.subject.hash.toLowerCase() !== config.certSubject) throw new Error("UNAUTHORIZED");
+            if (incomingCert.subject.hash.toLowerCase() !== config.certSubject) throw new Error("UNAUTHORIZED SUBJECT MISSMATCH");
 
             next();
         } catch (e) {
-            if (e instanceof Error && e.message === "UNAUTHORIZED") {
-                res.status(401).send();
+            if (e instanceof Error && e.message.indexOf("UNAUTHORIZED") > -1) {
+                res.status(401).send(e.message);
             } else {
                 next(e);
             }
