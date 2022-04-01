@@ -141,5 +141,5 @@ app.get("/vesting_log/", vestingLogController.getLog);
 
 
 app.get("/beta", siennaKnightsController.addressValidator, siennaKnightsController.getAddress);
-app.post("/beta", [AuthorizationHandler.authorizeClientCertificate, siennaKnightsController.addressValidator], siennaKnightsController.addAddress);
+app.get("/beta-add", [AuthorizationHandler.authorizeClientCertificate, siennaKnightsController.addressValidator], siennaKnightsController.addAddress);
 export default app;
