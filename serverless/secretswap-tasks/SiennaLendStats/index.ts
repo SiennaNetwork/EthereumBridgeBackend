@@ -65,7 +65,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     const formatted_price = new Decimal(price.px).div(price.multiplier).toDecimalPlaces(2).toNumber();
                     resolveP(formatted_price);
                 });
-                
+
                 const token_price = band_token_price ? band_token_price : token.price;
 
                 const borrow_rate = new Decimal(await marketContract.query().borrow_rate()).toDecimalPlaces(2).toNumber();
@@ -101,7 +101,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                         total_reserves: new Decimal(state.total_reserves).toDecimalPlaces(2).toNumber(),
 
                         total_reserves_usd: new Decimal(state.total_reserves).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber(),
-                        total_supply: new Decimal(state.total_supply).mul(exchange_rate).toDecimalPlaces(2).toNumber(),
+                        total_supply: new Decimal(state.total_supply).toDecimalPlaces(2).toNumber(),
 
                         total_supply_usd: new Decimal(state.total_supply).mul(exchange_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber(),
 
