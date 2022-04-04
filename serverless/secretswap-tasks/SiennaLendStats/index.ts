@@ -6,12 +6,14 @@ import { CosmWasmClient, EnigmaUtils } from "secretjs";
 import { whilst, mapLimit } from "async";
 import Decimal from "decimal.js";
 import { OverseerContract, Market, MarketContract } from "siennajs/dist/lib/lend";
+import axios from "axios";
 
 
 const secretNodeURL = process.env["secretNodeURL"];
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
 const OVERSEER_ADDRESS = process.env["OVERSEER_ADDRESS"];
+const BAND_REST_URL = process.env["BAND_REST_URL"];
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
     if (!OVERSEER_ADDRESS) return;
@@ -56,11 +58,20 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 const exchange_rate = await marketContract.query().exchange_rate();
 
                 const token = await db.collection("token_pairing").findOne({ dst_address: underlying_asset.address });
-                const token_price = new Decimal(token.price).toNumber();
-                const borrow_rate = new Decimal(await marketContract.query().borrow_rate()).toNumber();
+
+                const band_token_price = await new Promise(async (resolveP) => {
+                    const band_data = (await axios.get(`${BAND_REST_URL}request_prices`, { params: { symbols: market.symbol } })).data.price_results;
+                    const price = band_data.find((entry) => entry.symbol === market.symbol);
+                    const formatted_price = new Decimal(price.px).div(price.multiplier).toDecimalPlaces(2).toNumber();
+                    resolveP(formatted_price);
+                });
+                
+                const token_price = band_token_price ? band_token_price : token.price;
+
+                const borrow_rate = new Decimal(await marketContract.query().borrow_rate()).toDecimalPlaces(2).toNumber();
                 const borrow_rate_usd = new Decimal(borrow_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
 
-                const supply_rate = new Decimal(await marketContract.query().supply_rate()).toNumber();
+                const supply_rate = new Decimal(await marketContract.query().supply_rate()).toDecimalPlaces(2).toNumber();
                 const supply_rate_usd = new Decimal(supply_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
 
                 const borrow_APY = new Decimal(borrow_rate).div(Decimal.pow(10, token.decimals).toNumber()).mul(10 * 60 * 24 * 365).add(1).pow(365).div(365).mul(100).toDecimalPlaces(2).toNumber();
