@@ -89,7 +89,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                         total_reserves_usd: new Decimal(state.total_reserves).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber(),
                         total_supply: new Decimal(state.total_supply).toDecimalPlaces(2).toNumber(),
 
-                        total_supply_usd: new Decimal(state.total_supply).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber(),
+                        total_supply_usd: new Decimal(state.total_supply).mul(exchange_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber(),
 
                         underlying_balance: new Decimal(state.underlying_balance).toDecimalPlaces(2).toNumber(),
                         underlying_balance_usd: new Decimal(state.underlying_balance).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber(),
