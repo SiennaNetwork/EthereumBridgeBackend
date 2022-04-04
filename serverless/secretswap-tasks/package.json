@@ -16,6 +16,7 @@
     "typescript": "^3.3.3"
   },
   "dependencies": {
+    "@bandprotocol/bandchain.js": "^2.0.3",
     "@sendgrid/mail": "^7.4.7",
     "amm-types": "2.5.1",
     "async": "^3.2.3",
@@ -26,7 +27,7 @@
     "mongodb": "^3.6.6",
     "node-fetch": "^2.6.1",
     "secretjs": "0.17.5",
-    "siennajs": "^0.2.0-beta.0",
+    "siennajs": "^0.2.0-beta.2",
     "underscore": "^1.13.1"
   }
 }

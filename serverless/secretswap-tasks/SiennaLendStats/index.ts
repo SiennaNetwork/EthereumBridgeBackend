@@ -5,7 +5,8 @@ import { MongoClient } from "mongodb";
 import { CosmWasmClient, EnigmaUtils } from "secretjs";
 import { whilst, mapLimit } from "async";
 import Decimal from "decimal.js";
-import { Market } from "siennajs/dist/lib/lend";
+import { OverseerContract, Market, MarketContract } from "siennajs/dist/lib/lend";
+
 
 const secretNodeURL = process.env["secretNodeURL"];
 const mongodbUrl = process.env["mongodbUrl"];
@@ -25,18 +26,21 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const seed = EnigmaUtils.GenerateNewSeed();
     const queryClient = new CosmWasmClient(secretNodeURL, seed);
 
+    const siennaJS = new OverseerContract(OVERSEER_ADDRESS, null, queryClient);
+
+
     const markets: Market[] = await new Promise((resolve) => {
         let call = true, start = 0, contracts = [];
         whilst(
             (callback) => callback(null, call),
             async (callback) => {
-                const result = await queryClient.queryContractSmart(OVERSEER_ADDRESS, { markets: { pagination: { start: start, limit: 10 } } });
-                if (!result || !result.length) {
+                const result = await siennaJS.query().markets({ start: start, limit: 10 });
+                if (!result || !result.entries || !result.entries.length) {
                     call = false;
                     return callback();
                 }
-                start += result.length;
-                contracts = contracts.concat(result);
+                start += result.entries.length;
+                contracts = contracts.concat(result.entries);
                 callback();
             }, () => {
                 return resolve(contracts);
@@ -47,22 +51,21 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const data = await new Promise((resolve) => {
         mapLimit(markets, 1, async (market, callback) => {
             try {
-
-                const underlying_asset = await queryClient.queryContractSmart(market.contract.address, { underlying_asset: {} });
-                const exchange_rate = await queryClient.queryContractSmart(market.contract.address, { exchange_rate: {} });
+                const marketContract = new MarketContract(market.contract.address, null, queryClient);
+                const underlying_asset = await marketContract.query().underlying_asset();
+                const exchange_rate = await marketContract.query().exchange_rate();
 
                 const token = await db.collection("token_pairing").findOne({ dst_address: underlying_asset.address });
                 const token_price = new Decimal(token.price).toNumber();
-
-                const borrow_rate = new Decimal(await queryClient.queryContractSmart(market.contract.address, { borrow_rate: {} })).toDecimalPlaces(2).toNumber();
+                const borrow_rate = new Decimal(await marketContract.query().borrow_rate()).toNumber();
                 const borrow_rate_usd = new Decimal(borrow_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
 
-                const supply_rate = new Decimal(await queryClient.queryContractSmart(market.contract.address, { supply_rate: {} })).toDecimalPlaces(2).toNumber();
+                const supply_rate = new Decimal(await marketContract.query().supply_rate()).toNumber();
                 const supply_rate_usd = new Decimal(supply_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
 
                 const borrow_APY = new Decimal(borrow_rate).div(Decimal.pow(10, token.decimals).toNumber()).mul(10 * 60 * 24 * 365).add(1).pow(365).div(365).mul(100).toDecimalPlaces(2).toNumber();
                 const supply_APY = new Decimal(supply_rate).div(Decimal.pow(10, token.decimals).toNumber()).mul(10 * 60 * 24 * 365).add(1).pow(365).div(365).mul(100).toDecimalPlaces(2).toNumber();
-                const state = await queryClient.queryContractSmart(market.contract.address, { state: {} });
+                const state = await marketContract.query().state();
                 callback(null, {
                     market: market.contract.address,
                     token_price: token_price,
