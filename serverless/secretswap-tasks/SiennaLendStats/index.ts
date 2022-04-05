@@ -68,14 +68,18 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
                 const token_price = band_token_price ? band_token_price : token.price;
 
-                const borrow_rate = new Decimal(await marketContract.query().borrow_rate()).toDecimalPlaces(2).toNumber();
+                const borrow_rate = new Decimal(await marketContract.query().borrow_rate()).toNumber();
                 const borrow_rate_usd = new Decimal(borrow_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
 
-                const supply_rate = new Decimal(await marketContract.query().supply_rate()).toDecimalPlaces(2).toNumber();
+                const supply_rate = new Decimal(await marketContract.query().supply_rate()).toNumber();
                 const supply_rate_usd = new Decimal(supply_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
 
-                const borrow_APY = new Decimal(borrow_rate).div(Decimal.pow(10, token.decimals).toNumber()).mul(10 * 60 * 24 * 365).add(1).pow(365).div(365).mul(100).toDecimalPlaces(2).toNumber();
-                const supply_APY = new Decimal(supply_rate).div(Decimal.pow(10, token.decimals).toNumber()).mul(10 * 60 * 24 * 365).add(1).pow(365).div(365).mul(100).toDecimalPlaces(2).toNumber();
+                const supply_rate_day = new Decimal(86400).div(6).mul(supply_rate).toNumber();
+                const supply_APY = new Decimal(supply_rate_day).add(1).pow(365).minus(1).toDecimalPlaces(2).toNumber();
+
+                const borrow_rate_day = new Decimal(86400).div(6).mul(borrow_rate).toNumber();
+                const borrow_APY = new Decimal(borrow_rate_day).add(1).pow(365).minus(1).toDecimalPlaces(2).toNumber();
+
                 const state = await marketContract.query().state();
                 callback(null, {
                     market: market.contract.address,
