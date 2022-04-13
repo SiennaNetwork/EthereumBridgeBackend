@@ -34,18 +34,18 @@ interface Poll {
     current_quorum: number;
 }
 
-async function get_polls(): Promise<Poll[]> {
+async function get_polls(now): Promise<Poll[]> {
     return new Promise(async (resolve) => {
         let polls: Poll[] = [];
         try {
-            const result = await queryClient.queryContractSmart(governance_address, { governance: { polls: { now: Date.now(), page: 1, take: 100, asc: true } } });
+            const result = await queryClient.queryContractSmart(governance_address, { governance: { polls: { now: now, page: 1, take: 100, asc: true } } });
             polls = polls.concat(result.governance.polls.polls);
             const nr_of_polls = result.governance.polls.total;
             let i = 2;
             whilst(
                 (callback) => callback(null, i <= nr_of_polls),
                 async (callback) => {
-                    const page_result = await queryClient.queryContractSmart(governance_address, { governance: { polls: { now: Date.now(), page: i, take: 100, asc: true } } });
+                    const page_result = await queryClient.queryContractSmart(governance_address, { governance: { polls: { now: now, page: i, take: 100, asc: true } } });
                     polls = polls.concat(page_result.governance.polls.polls);
                     i++;
                     callback();
@@ -67,7 +67,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         }
     );
 
-    const polls = await get_polls();
+    const block = (await queryClient.getBlock()).header.height;
+    const polls = await get_polls(block);
     await Promise.all(polls.map((poll) => client
         .db(mongodbName)
         .collection("polls")
