@@ -16,8 +16,8 @@ const sender_address = process.env["sender_address"];
 const vesting_fee_amount = process.env["vesting_fee_amount"] || "500000";
 const vesting_fee_gas = process.env["vesting_fee_gas"] || "2000000";
 
-const next_epoch_fee_amount = process.env["next_epoch_fee_amount"] || "250000";
-const next_epoch_fee_gas = process.env["next_epoch_fee_gas"] || "100000";
+const next_epoch_fee_amount = process.env["next_epoch_fee_amount"] || "20000";
+const next_epoch_fee_gas = process.env["next_epoch_fee_gas"] || "50000";
 
 const mongodbName: string = process.env["mongodbName"];
 const mongodbUrl: string = process.env["mongodbUrl"];
@@ -93,7 +93,11 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
 
     const rewardsCollection = client.db(mongodbName).collection("rewards_data");
-    const pools: any[] = await rewardsCollection.find().toArray().catch(
+    const poolsV3: any[] = await rewardsCollection.find({
+        rpt_address: RPTContractAddress,
+        mgmt_address: MGMTContractAddress,
+        version: "3"
+    }).toArray().catch(
         (err: any) => {
             context.log(err);
             throw new Error("Failed to get rewards from collection");
@@ -112,8 +116,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     const nextepoch_log = [];
     const epoch_skip_call = {};
-
-    const poolsV3 = pools.filter(pool => pool.version === "3");
 
     const checkIfVested = async (): Promise<boolean> => {
         const status = await signingCosmWasmClient.queryContractSmart(MGMTContractAddress, {
@@ -144,17 +146,21 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         return fee;
     };
 
+    const wait = (time): Promise<void> => {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve();
+            }, time);
+        });
+    };
+
     while (call) {
         try {
             logs.push(`Calling with fees ${JSON.stringify(fee)}`);
             vest_result = await signingCosmWasmClient.execute(RPTContractAddress, { vest: {} }, undefined, undefined, fee);
 
             //wait 15s
-            await new Promise((resolve) => {
-                setTimeout(() => {
-                    resolve(null);
-                }, 15000);
-            });
+            await wait(15000);
 
             //check if RPT was vested
             const status = await checkIfVested();
@@ -176,11 +182,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             } else {
                 //check if vest call was successfull even though we ended up in here...
                 //wait 15s
-                await new Promise((resolve) => {
-                    setTimeout(() => {
-                        resolve(null);
-                    }, 15000);
-                });
+                await wait(15000);
                 const status = await checkIfVested();
                 if (status) {
                     call = false;
@@ -216,7 +218,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 let retries = 1;
                 whilst(
                     //keep trying until the call is successful with up to 5 retires
-                    (callback) => callback(null, !epoch_skip_call[p.rewards_contract] && next_epoch_should_be !== next_epoch_is),
+                    (callback) => callback(null, !epoch_skip_call[p.rewards_contract] && next_epoch_should_be > next_epoch_is),
                     async (callback) => {
                         try {
                             const result = await signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch: next_epoch_is + 1 } } }, undefined, undefined, fee);
@@ -229,11 +231,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                                 fee = parseFeeError(e.toString());
                             } else {
                                 //wait 20s before retrying
-                                await new Promise((resolve) => {
-                                    setTimeout(() => {
-                                        resolve(true);
-                                    }, 20000);
-                                });
+                                await wait(20000);
                                 //check if the call went through even though it threw an error
                                 const pool_info = await signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } });
                                 if (pool_info.rewards.pool_info.clock.number === next_epoch_is + 1) {
