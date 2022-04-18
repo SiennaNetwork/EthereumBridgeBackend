@@ -183,7 +183,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 } catch (e) {
                     vest_error = e;
                     //check if RPT was already vested so we don't increment the clocks
-                    if (e.toString().toLowerCase().indexOf("nothing to claim right now") > -1) {
+                    if (e.toString().toLowerCase().indexOf("nothing to claim right now") > -1 || e.toString().toLowerCase().indexOf("the vesting has not yet begun") > -1) {
                         call = false;
                     } else {
                         //check if vest call was successfull even though we ended up in here...
