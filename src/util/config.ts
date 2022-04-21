@@ -10,24 +10,6 @@ const config = convict({
     arg: "nodeEnv",
     env: "NODE_ENV",
   },
-  certIssuer: {
-    format: String,
-    default: "",
-    arg: "certIssuer",
-    env: "CERT_ISSUER",
-  },
-  certSubject: {
-    format: String,
-    default: "",
-    arg: "certSubject",
-    env: "CERT_SUBJECT",
-  },
-  certFingerprint: {
-    format: String,
-    default: "",
-    arg: "certFingerprint",
-    env: "CERT_FINGERPRINT",
-  },
   dbUser: {
     format: String,
     default: "",
