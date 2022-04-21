@@ -153,6 +153,9 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 symbol: {
                     $first: "$data.symbol"
                 },
+                underlying_asset_symbol: {
+                    $first: "$data.underlying_asset_symbol"
+                },
                 ltv_ratio: {
                     $avg: "$data.ltv_ratio"
                 },
@@ -220,6 +223,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 date: "$_id.date",
                 market: "$_id.market",
                 symbol: "$symbol",
+                underlying_asset_symbol: "$underlying_asset_symbol",
                 token_price: "$token_price",
                 token_address: "$token_address",
                 supply_APY: "$supply_APY",

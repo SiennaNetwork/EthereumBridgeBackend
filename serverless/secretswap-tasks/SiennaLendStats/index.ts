@@ -86,6 +86,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     token_price: token_price,
                     token_address: underlying_asset.address,
                     symbol: market.symbol,
+                    underlying_asset_symbol: token.display_props.symbol,
                     ltv_ratio: new Decimal(market.ltv_ratio).toDecimalPlaces(2).toNumber(),
                     exchange_rate: new Decimal(exchange_rate).toDecimalPlaces(2).toNumber(),
                     borrow_APY,

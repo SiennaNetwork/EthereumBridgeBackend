@@ -15,6 +15,8 @@
             "token_price": Number,
             //marketContract.query().underlying_asset()
             "token_address": String,
+            //The symbol of the underlying asset
+            "underlying_asset_symbol": String,
             //The symbol of the underlying asset. Note that this is the same as the symbol that the oracle expects, not what the actual token has in its storage.
             "symbol": String,
             //The percentage rate at which tokens can be borrowed given the size of the collateral.
