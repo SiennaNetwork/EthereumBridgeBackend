@@ -10,22 +10,26 @@ export const SiennaLendStatisticsSchema = new mongoose.Schema({
     data: [
         {
             market: String,
+            token_price: mongoose.Types.Decimal128,
+            token_address: String,
             symbol: String,
             ltv_ratio: mongoose.Types.Decimal128,
-            exchange_rate: {
-                rate: mongoose.Types.Decimal128,
-                denom: String
-            },
+            exchange_rate: mongoose.Types.Decimal128,
             borrow_rate: mongoose.Types.Decimal128,
+            borrow_rate_usd: mongoose.Types.Decimal128,
             supply_rate: mongoose.Types.Decimal128,
-            borrowers: Array,
+            supply_rate_usd: mongoose.Types.Decimal128,
             state: {
                 accrual_block: Number,
                 borrow_index: mongoose.Types.Decimal128,
                 total_borrows: mongoose.Types.Decimal128,
+                total_borrows_usd: mongoose.Types.Decimal128,
                 total_reserves: mongoose.Types.Decimal128,
+                total_reserves_usd: mongoose.Types.Decimal128,
                 total_supply: mongoose.Types.Decimal128,
+                total_supply_usd: mongoose.Types.Decimal128,
                 underlying_balance: mongoose.Types.Decimal128,
+                underlying_balance_usd: mongoose.Types.Decimal128,
                 config: {
                     initial_exchange_rate: mongoose.Types.Decimal128,
                     reserve_factor: mongoose.Types.Decimal128,

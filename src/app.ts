@@ -5,11 +5,9 @@ import bodyParser from "body-parser";
 import lusca from "lusca";
 //import mongo from "connect-mongo";
 import mongoose from "mongoose";
-
 import cors from "cors";
 
 import bluebird from "bluebird";
-import { SESSION_SECRET } from "./util/secrets";
 import logger from "./util/logger";
 //const MongoStore = mongo(session);
 
@@ -26,8 +24,9 @@ import * as votesController from "./controllers/votes";
 import * as siennaTokenStatisticsController from "./controllers/sienna_token_statistics";
 import * as siennaLendStatisticsController from "./controllers/sienna_lend_statistics";
 import * as siennaMarketPriceController from "./controllers/sienna_market_price";
-import *  as alterController from "./controllers/alter";
-import *  as vestingLogController from "./controllers/vesting_log";
+import * as alterController from "./controllers/alter";
+import * as vestingLogController from "./controllers/vesting_log";
+import * as pollController from "./controllers/polls";
 
 import config from "./util/config";
 
@@ -76,7 +75,6 @@ app.use(
 
 // Express configuration
 app.set("port", config.port || 8000);
-
 app.use(compression());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -132,11 +130,15 @@ app.get("/sienna_token_statistics/", siennaTokenStatisticsController.getStatisti
 app.get("/sienna_token_historical_data/", siennaTokenStatisticsController.historicalDataQueryValidator, siennaTokenStatisticsController.getHistoricalData);
 
 app.get("/sienna_lend_historical_data/", siennaLendStatisticsController.historicalDataQueryValidator, siennaLendStatisticsController.getHistoricalData);
+app.get("/sienna_lend_latest_data/", siennaLendStatisticsController.getLatest);
 
 app.get("/sienna_market_price/", siennaMarketPriceController.getPrice);
 
 app.get("/alter/", alterController.getAlter);
 
 app.get("/vesting_log/", vestingLogController.getLog);
+
+app.get("/polls/", pollController.getPolls);
+app.get("/polls/:poll", pollController.getPollValidator, pollController.getPoll);
 
 export default app;

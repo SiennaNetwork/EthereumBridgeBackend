@@ -32,6 +32,59 @@ export const historicalDataQueryValidator = validate(checkSchema({
     }
 }));
 
+export const getLatest = async (req: Request, res: Response) => {
+    const data = await cache.get("sienna_lend_historical_data_latest", async () => {
+        return await SiennaLendStatistics.aggregate([{
+            $sort: {
+                _id: -1
+            }
+        },
+        {
+            $limit: 1
+        }, {
+            $unwind: "$data"
+        }, {
+            $group: {
+                _id: "$_id",
+                date: { $first: "$date" },
+                markets: { $push: "$data" },
+                total_supply_usd: {
+                    $sum: "$data.state.total_supply_usd"
+                },
+                total_borrows_usd: {
+                    $sum: "$data.state.total_borrows_usd"
+                },
+                total_reserves_usd: {
+                    $sum: "$data.state.total_reserves_usd"
+                },
+                underlying_balance_usd: {
+                    $sum: "$data.state.underlying_balance_usd"
+                },
+                borrow_rate_usd: {
+                    $sum: "$data.borrow_rate_usd"
+                },
+                supply_rate_usd: {
+                    $sum: "$data.supply_rate_usd"
+                },
+                supply_APY: {
+                    $avg: "$data.supply_APY"
+                },
+                borrow_APY: {
+                    $avg: "$data.borrow_APY"
+                }
+            }
+        }]);
+    });
+
+
+    try {
+        res.json({ data: data[0] });
+    } catch (e) {
+        res.status(500);
+        res.send(`Error: ${e}`);
+    }
+};
+
 export const getHistoricalData = async (req: Request, res: Response) => {
     const periodValue = parseInt(req.query.period.toString().split(" ")[0]) as DurationInputArg1;
     const period = req.query.period.toString().split(" ")[1] as unitOfTime.DurationConstructor;
@@ -63,7 +116,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
         default:
             format = "%Y-%m-%d %H:00:00";
     }
-    const data = await cache.get("sienna_lend_historical_data_" + `${period}_${periodValue}`, async () => {
+    const data = await cache.get("sienna_lend_historical_data_" + `${period}_${periodValue}_${req.query.type}`, async () => {
         return await SiennaLendStatistics.aggregate([{
             $match: query
         },
@@ -91,11 +144,26 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 market: {
                     $first: "$data.market"
                 },
+                token_price: {
+                    $avg: "$data.token_price"
+                },
+                token_address: {
+                    $first: "$data.token_address"
+                },
                 symbol: {
                     $first: "$data.symbol"
                 },
+                underlying_asset_symbol: {
+                    $first: "$data.underlying_asset_symbol"
+                },
                 ltv_ratio: {
                     $avg: "$data.ltv_ratio"
+                },
+                supply_APY: {
+                    $avg: "$data.supply_APY"
+                },
+                borrow_APY: {
+                    $avg: "$data.borrow_APY"
                 },
                 borrow_rate: {
                     $avg: "$data.borrow_rate"
@@ -103,11 +171,14 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 supply_rate: {
                     $avg: "$data.supply_rate"
                 },
-                exchange_rate_rate: {
-                    $avg: "$data.exchange_rate.rate"
+                borrow_rate_usd: {
+                    $avg: "$data.borrow_rate_usd"
                 },
-                exchange_rate_denom: {
-                    $first: "$data.exchange_rate.denom"
+                supply_rate_usd: {
+                    $avg: "$data.supply_rate_usd"
+                },
+                exchange_rate: {
+                    $avg: "$data.exchange_rate"
                 },
                 state_borrow_index: {
                     $avg: "$data.state.borrow_index"
@@ -115,14 +186,26 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 state_total_borrows: {
                     $avg: "$data.state.total_borrows"
                 },
+                state_total_borrows_usd: {
+                    $avg: "$data.state.total_borrows_usd"
+                },
                 state_total_reserves: {
                     $avg: "$data.state.total_reserves"
+                },
+                state_total_reserves_usd: {
+                    $avg: "$data.state.total_reserves_usd"
                 },
                 state_total_supply: {
                     $avg: "$data.state.total_supply"
                 },
+                state_total_supply_usd: {
+                    $avg: "$data.state.total_supply_usd"
+                },
                 state_underlying_balance: {
                     $avg: "$data.state.underlying_balance"
+                },
+                state_underlying_balance_usd: {
+                    $avg: "$data.state.underlying_balance_usd"
                 },
                 state_config_initial_exchange_rate: {
                     $avg: "$data.state.config.initial_exchange_rate"
@@ -132,11 +215,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 },
                 state_config_seize_factor: {
                     $avg: "$data.state.config.seize_factor"
-                },
-                borrowers: {
-                    $last: "$data.borrowers"
                 }
-
             }
         },
         {
@@ -144,20 +223,27 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 date: "$_id.date",
                 market: "$_id.market",
                 symbol: "$symbol",
+                underlying_asset_symbol: "$underlying_asset_symbol",
+                token_price: "$token_price",
+                token_address: "$token_address",
+                supply_APY: "$supply_APY",
+                borrow_APY: "$borrow_APY",
                 ltv_ratio: "$ltv_ratio",
                 borrow_rate: "$borrow_rate",
                 supply_rate: "$supply_rate",
-                borrowers: "$borrowers",
-                exchange_rate: {
-                    rate: "$exchange_rate_rate",
-                    denom: "$exchange_rate_denom"
-                },
+                borrow_rate_usd: "$borrow_rate_usd",
+                supply_rate_usd: "$supply_rate_usd",
+                exchange_rate: "$exchange_rate",
                 state: {
                     borrow_index: "$state_borrow_index",
                     total_borrows: "$state_total_borrows",
+                    total_borrows_usd: "$state_total_borrows_usd",
                     total_reserves: "$state_total_reserves",
+                    total_reserves_usd: "$state_total_reserves_usd",
                     total_supply: "$state_total_supply",
+                    total_supply_usd: "$state_total_supply_usd",
                     underlying_balance: "$state_underlying_balance",
+                    underlying_balance_usd: "$state_underlying_balance_usd",
                     config: {
                         initial_exchange_rate: "$state_config_initial_exchange_rate",
                         reserve_factor: "$state_config_reserve_factor",
@@ -170,6 +256,24 @@ export const getHistoricalData = async (req: Request, res: Response) => {
             $group: {
                 _id: "$date",
                 data: { $push: "$" }
+            }
+        },
+        {
+            $unwind: "$data"
+        },
+        {
+            $group: {
+                _id: "$_id",
+                date: { $first: "$_id" },
+                markets: { $push: "$data" },
+                total_supply_usd: { $sum: "$data.state.total_supply_usd" },
+                total_borrows_usd: { $sum: "$data.state.total_borrows_usd" },
+                total_reserves_usd: { $sum: "$data.state.total_reserves_usd" },
+                underlying_balance_usd: { $sum: "$data.state.underlying_balance_usd" },
+                borrow_rate_usd: { $sum: "$data.borrow_rate_usd" },
+                supply_rate_usd: { $sum: "$data.supply_rate_usd" },
+                supply_APY: { $avg: "$data.supply_APY" },
+                borrow_APY: { $avg: "$data.borrow_APY" },
             }
         },
         {
