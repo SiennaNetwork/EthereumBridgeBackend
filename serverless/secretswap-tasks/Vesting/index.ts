@@ -244,7 +244,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                                 retries++;
                             }
                         } finally {
-                            if (retries > 10) {
+                            if (retries > 3) {
                                 logs.push(`Failed to increase clock for: ${p.rewards_contract} to ${next_epoch_is + 1} in ${retries} tries`);
                                 epoch_skip_call[p.rewards_contract] = true;
                             }
