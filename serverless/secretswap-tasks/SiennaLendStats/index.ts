@@ -50,8 +50,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         );
     });
 
-    const data = await new Promise((resolve) => {
-        mapLimit(markets, 1, async (market, callback) => {
+    const data = await new Promise((resolve, reject) => {
+        mapLimit(markets, 3, async (market, callback) => {
             try {
                 const marketContract = new MarketContract(market.contract.address, null, queryClient);
                 const underlying_asset = await marketContract.query().underlying_asset();
@@ -122,10 +122,11 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 });
             } catch (e) {
                 context.log(e);
-                callback();
+                callback(e);
             }
         }, (err, results) => {
-            resolve(results.filter(res => !!res));
+            if (err) return reject(err);
+            resolve(results);
         });
     });
 
