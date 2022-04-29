@@ -71,8 +71,14 @@ export const getLatest = async (req: Request, res: Response) => {
                 borrow_APY: {
                     $avg: "$data.borrow_APY"
                 },
-                rewards_APY: {
-                    $avg: "$data.rewards_APY"
+                rewards_APR: {
+                    $avg: "$data.rewards_APR"
+                },
+                total_supply_APY: {
+                    $avg: "$data.total_supply_APY"
+                },
+                total_borrow_APY: {
+                    $avg: "$data.total_borrow_APY"
                 }
             }
         }]);
@@ -167,8 +173,14 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 borrow_APY: {
                     $avg: "$data.borrow_APY"
                 },
-                rewards_APY: {
-                    $avg: "$data.rewards_APY"
+                rewards_APR: {
+                    $avg: "$data.rewards_APR"
+                },
+                total_supply_APY: {
+                    $avg: "$data.total_supply_APY"
+                },
+                total_borrow_APY: {
+                    $avg: "$data.total_borrow_APY"
                 },
                 borrow_rate: {
                     $avg: "$data.borrow_rate"
@@ -233,7 +245,9 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 token_address: "$token_address",
                 supply_APY: "$supply_APY",
                 borrow_APY: "$borrow_APY",
-                rewards_APY: "$rewards_APY",
+                rewards_APR: "$rewards_APR",
+                total_supply_APY: "$total_supply_APY",
+                total_borrow_APY: "$total_borrow_APY",
                 ltv_ratio: "$ltv_ratio",
                 borrow_rate: "$borrow_rate",
                 supply_rate: "$supply_rate",
@@ -280,7 +294,9 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 supply_rate_usd: { $sum: "$data.supply_rate_usd" },
                 supply_APY: { $avg: "$data.supply_APY" },
                 borrow_APY: { $avg: "$data.borrow_APY" },
-                rewards_APY: { $avg: "$data.rewards_APY" }
+                rewards_APR: { $avg: "$data.rewards_APR" },
+                total_supply_APY: { $avg: "$data.total_supply_APY" },
+                total_borrow_APY: { $avg: "$data.total_borrow_APY" },
             }
         },
         {

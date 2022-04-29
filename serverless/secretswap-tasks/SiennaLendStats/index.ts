@@ -70,7 +70,7 @@ const LendData = async (tokens, rewards) => {
                 const supply_rate_usd = new Decimal(supply_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
 
                 const supply_rate_day = new Decimal(86400).div(6).mul(supply_rate).toNumber();
-                let supply_APY = new Decimal(supply_rate_day).add(1).pow(365).minus(1).toDecimalPlaces(2).toNumber();
+                const supply_APY = new Decimal(supply_rate_day).add(1).pow(365).minus(1).toDecimalPlaces(2).toNumber();
 
                 const borrow_rate_day = new Decimal(86400).div(6).mul(borrow_rate).toNumber();
                 const borrow_APY = new Decimal(borrow_rate_day).add(1).pow(365).minus(1).toDecimalPlaces(2).toNumber();
@@ -78,11 +78,10 @@ const LendData = async (tokens, rewards) => {
                 const state = await marketContract.query().state();
 
                 const reward = rewards.find(r => r.lp_token_address === market.contract.address);
-                let rewards_APY = 0;
+                let rewards_APR = 0;
                 if (reward) {
                     const total_locked_usd = new Decimal(reward.total_locked).div(new Decimal(10).pow(reward.inc_token.decimals)).mul(exchange_rate).times(token_price);
-                    rewards_APY = new Decimal(reward.rewards_token.rewards_per_day).mul(token_price).times(365).div(total_locked_usd).times(100).toDecimalPlaces(0).toNumber();
-                    if (rewards_APY) supply_APY += rewards_APY;
+                    rewards_APR = new Decimal(reward.rewards_token.rewards_per_day).mul(token_price).times(365).div(total_locked_usd).times(100).toDecimalPlaces(2).toNumber();
                 }
 
                 callback(null, {
@@ -93,9 +92,11 @@ const LendData = async (tokens, rewards) => {
                     underlying_asset_symbol: token.display_props.symbol,
                     ltv_ratio: new Decimal(market.ltv_ratio).toDecimalPlaces(2).toNumber(),
                     exchange_rate: new Decimal(exchange_rate).toDecimalPlaces(2).toNumber(),
-                    rewards_APY,
+                    rewards_APR,
                     borrow_APY,
                     supply_APY,
+                    total_supply_APY: new Decimal(supply_APY).add(rewards_APR).toDecimalPlaces(2).toNumber(),
+                    total_borrow_APY: new Decimal(borrow_APY).minus(rewards_APR).toDecimalPlaces(2).toNumber(),
                     borrow_rate,
                     borrow_rate_usd,
                     supply_rate,
