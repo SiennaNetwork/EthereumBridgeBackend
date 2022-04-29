@@ -81,7 +81,7 @@ const LendData = async (tokens, rewards) => {
                 let rewards_APY = 0;
                 if (reward) {
                     const total_locked_usd = new Decimal(reward.total_locked).div(new Decimal(10).pow(reward.inc_token.decimals)).mul(exchange_rate).times(token_price);
-                    rewards_APY = new Decimal(reward.rewards_token.rewards_per_day).mul(4.3).times(365).div(total_locked_usd).times(100).toDecimalPlaces(0).toNumber();
+                    rewards_APY = new Decimal(reward.rewards_token.rewards_per_day).mul(token_price).times(365).div(total_locked_usd).times(100).toDecimalPlaces(0).toNumber();
                     if (rewards_APY) supply_APY += rewards_APY;
                 }
 
