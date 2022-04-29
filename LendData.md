@@ -25,7 +25,9 @@
             "exchange_rate": Number,
             //borrow APY% -> ((blocks_per_day * borrow_rate + 1) ^ days in year) - 1
             "borrow_APY": Number,
-            //supply APY%  -> ((blocks_per_day * supply_rate + 1) ^ days in year) - 1
+            //APY of the rewards associtiated with this market
+            "rewards_APY": Number,
+            //supply APY%  -> ((blocks_per_day * supply_rate + 1) ^ days in year) - 1 + rewards_APY
             "supply_APY": Number,
             //marketContract.query().borrow_rate()
             "borrow_rate": Number,
@@ -75,6 +77,8 @@
     //Average supply_APY across all markets
     "supply_APY": Number,
     //Average borrow_APY across all markets
-    "borrow_APY": Number
+    "borrow_APY": Number,
+    //Average rewards_APY across all markets
+    "rewards_APY": Number
 }
 ```
