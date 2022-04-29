@@ -193,8 +193,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     return;
                 }
 
-                context.log(`Locked for Pool: ${pool.inc_token.symbol} ${total_locked} V${pool.version}`);
-
                 rewardTokenPrice = await getPriceForSymbol(queryClient, pool.rewards_token.address, pool.rewards_token.symbol, tokens, pairs);
                 
                 return await db.collection("rewards_data").updateOne({ "lp_token_address": poolAddr, version: pool.version },

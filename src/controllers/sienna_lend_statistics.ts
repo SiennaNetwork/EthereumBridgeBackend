@@ -34,12 +34,11 @@ export const historicalDataQueryValidator = validate(checkSchema({
 
 export const getLatest = async (req: Request, res: Response) => {
     const data = await cache.get("sienna_lend_historical_data_latest", async () => {
-        return await SiennaLendStatistics.aggregate([{
+        return SiennaLendStatistics.aggregate([{
             $sort: {
                 _id: -1
             }
-        },
-        {
+        }, {
             $limit: 1
         }, {
             $unwind: "$data"
@@ -71,6 +70,9 @@ export const getLatest = async (req: Request, res: Response) => {
                 },
                 borrow_APY: {
                     $avg: "$data.borrow_APY"
+                },
+                rewards_APY: {
+                    $avg: "$data.rewards_APY"
                 }
             }
         }]);
@@ -117,7 +119,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
             format = "%Y-%m-%d %H:00:00";
     }
     const data = await cache.get("sienna_lend_historical_data_" + `${period}_${periodValue}_${req.query.type}`, async () => {
-        return await SiennaLendStatistics.aggregate([{
+        return SiennaLendStatistics.aggregate([{
             $match: query
         },
         {
@@ -164,6 +166,9 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 },
                 borrow_APY: {
                     $avg: "$data.borrow_APY"
+                },
+                rewards_APY: {
+                    $avg: "$data.rewards_APY"
                 },
                 borrow_rate: {
                     $avg: "$data.borrow_rate"
@@ -228,6 +233,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 token_address: "$token_address",
                 supply_APY: "$supply_APY",
                 borrow_APY: "$borrow_APY",
+                rewards_APY: "$rewards_APY",
                 ltv_ratio: "$ltv_ratio",
                 borrow_rate: "$borrow_rate",
                 supply_rate: "$supply_rate",
@@ -274,6 +280,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 supply_rate_usd: { $sum: "$data.supply_rate_usd" },
                 supply_APY: { $avg: "$data.supply_APY" },
                 borrow_APY: { $avg: "$data.borrow_APY" },
+                rewards_APY: { $avg: "$data.rewards_APY" }
             }
         },
         {
