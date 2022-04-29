@@ -57,7 +57,7 @@ const timerTrigger: AzureFunction = async function (
                 _id: contract.address, ...{
                   assets: Object.keys(pair_info.pair).map((key) => {
                     return {
-                      amount: pair_info['amount_' + key.split('_')[1]],
+                      amount: pair_info["amount_" + key.split("_")[1]],
                       info: {
                         token: {
                           contract_addr: pair_info.pair[key].custom_token.contract_addr,
@@ -100,7 +100,6 @@ const timerTrigger: AzureFunction = async function (
           }, {
             upsert: true
           })]);
-        context.log(`Updated Pair ${contract.address} V${contract["contract_version"]}`);
       } catch (e) {
         context.log(`Failed to update Pair ${contract.address} due to ${e.toString()}`);
       }
