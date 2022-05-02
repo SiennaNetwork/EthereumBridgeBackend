@@ -159,8 +159,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             logs.push(`Calling with fees ${JSON.stringify(fee)}`);
             vest_result = await signingCosmWasmClient.execute(RPTContractAddress, { vest: {} }, undefined, undefined, fee);
 
-            //wait 15s
-            await wait(15000);
+            //wait 5s
+            await wait(5000);
 
             //check if RPT was vested
             const status = await checkIfVested();
@@ -181,8 +181,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 call = false;
             } else {
                 //check if vest call was successfull even though we ended up in here...
-                //wait 15s
-                await wait(15000);
+                //wait 5s
+                await wait(5000);
                 const status = await checkIfVested();
                 if (status) {
                     call = false;
@@ -268,14 +268,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             next_epoch_result: nextepoch_log,
             logs: logs
         });
-        //in case this function is called through a http trigger
-        context.res = {
-            status: 200, /* Defaults to 200 */
-            headers: {
-                "content-type": "application/json"
-            },
-            body: { success: true }
-        };
     } else {
         await dbCollection.insertOne({
             date: moment().format("YYYY-MM-DD HH:mm:ss"),
@@ -302,15 +294,20 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             };
             await sgMail.send(msg);
         }
-        //in case this function is called through a http trigger
-        context.res = {
-            status: 200, /* Defaults to 200 */
-            headers: {
-                "content-type": "application/json"
-            },
-            body: { success: false, error: vest_error.toString() }
-        };
+
     }
+
+    context.res = {
+        status: 200, /* Defaults to 200 */
+        headers: {
+            "content-type": "application/json"
+        },
+        body: [{
+            rpt_address: RPTContractAddress,
+            success: vest_success,
+            error: vest_error ? vest_error.toString() : null
+        }]
+    };
     context.log("Finished calling vest");
 };
 

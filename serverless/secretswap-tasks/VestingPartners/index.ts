@@ -156,6 +156,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     //make map obj unique 
     const uniquePairs: RPTMGMTPair[] = uniq(pairs, "RPT");
 
+    const HTTPResponse = [];
+
     await new Promise((mainResolver) => {
         eachLimit(uniquePairs, 1, async (pair, CBRPT) => {
             let call = true;
@@ -167,7 +169,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     logs.push(`Calling with fees ${JSON.stringify(fee)}`);
                     vest_result = await signingCosmWasmClient.execute(pair.RPT, { vest: {} }, undefined, undefined, fee);
                     //wait 15s
-                    await wait(15000);
+                    await wait(5000);
                     //check if RPT was vested
                     const status = await checkIfVested(pair);
                     //don't call epoch if not vested
@@ -188,7 +190,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     } else {
                         //check if vest call was successfull even though we ended up in here...
                         //wait 15s
-                        await wait(15000);
+                        await wait(5000);
                         const status = await checkIfVested(pair);
                         if (status) {
                             call = false;
@@ -286,6 +288,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     logs: logs
                 });
             } else {
+
                 await logCollection.insertOne({
                     rpt_address: pair.RPT,
                     mgmt_address: pair.MGMT,
@@ -317,16 +320,24 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     await sgMail.send(msg);
                 }
             }
+
+            HTTPResponse.push({ rpt_address: pair.RPT, success: vest_success, error: vest_error ? vest_error.toString() : null });
             CBRPT();
-
-
 
         }, () => {
             mainResolver(null);
         });
     });
-
     context.log("Finished calling vest");
+    context.res = {
+        status: 200, /* Defaults to 200 */
+        headers: {
+            "content-type": "application/json"
+        },
+        body: HTTPResponse
+    };
+
+
 
 
 };
