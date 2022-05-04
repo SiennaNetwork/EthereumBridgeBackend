@@ -66,5 +66,11 @@ export const symbolsMap = {
     "TORN": "tornado-cash",
     "YFL": "yflink",
     "ZRX": "0x",
-    "stkd-SCRT": "stkd-scrt"
+    "stkd-SCRT": "stkd-scrt",
+    "SILK": "silkchain",
+    "SBTC": "bitcoin",
+
+    //testnet coins
+    "SITOK": "sienna",
+    "STEST": "sienna"
 };
