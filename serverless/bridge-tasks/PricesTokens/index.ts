@@ -91,7 +91,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             throw new Error("Failed to get tokens from collection");
         }
     );
-    const tokens_mapped = await Promise.all(tokens.map(async token => {
+    const tokens_mapped: any[] = await Promise.all(tokens.map(async token => {
         const token_info = await TokenInfo(token.dst_address);
         return {
             _id: token._id,
