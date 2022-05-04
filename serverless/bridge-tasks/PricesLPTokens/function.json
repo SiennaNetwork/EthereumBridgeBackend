@@ -1,0 +1,11 @@
+{
+    "scriptFile": "../dist/PricesLPTokens/index.js",
+    "bindings": [
+        {
+            "name": "myTimer",
+            "type": "timerTrigger",
+            "direction": "in",
+            "schedule": "59 */5 * * * *"
+        }
+    ]
+}
