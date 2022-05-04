@@ -82,7 +82,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
             format = "%Y-%m-%d %H:00:00";
     }
     const data = await cache.get("sienna_token_historical_data_" + `${period}_${periodValue}_${req.query.type}`, async () => {
-        return await SiennaTokenHistoricalData.aggregate([{
+        return SiennaTokenHistoricalData.aggregate([{
             $match: query
         }, {
             $project: {
@@ -92,6 +92,9 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 max_supply: "$max_supply",
                 total_supply: "$total_supply",
                 total_value_locked: "$total_value_locked",
+                staked: "$staked",
+                lend_supplied: "$lend_supplied",
+                pool_liquidity: "$pool_liquidity",
                 date: {
                     $dateToString: {
                         date: "$date",
@@ -120,6 +123,15 @@ export const getHistoricalData = async (req: Request, res: Response) => {
                 },
                 total_value_locked: {
                     $avg: "$total_value_locked"
+                },
+                staked: {
+                    $avg: "$staked"
+                },
+                pool_liquidity: {
+                    $avg: "$pool_liquidity"
+                },
+                lend_supplied: {
+                    $avg: "$lend_supplied"
                 }
             }
         },

@@ -27,7 +27,10 @@ export const SiennaTokenStatisticSchema = new mongoose.Schema({
     type: String,
     contract_address: String,
     max_supply: Number,
-    tokens_locked_by_team: Number
+    tokens_locked_by_team: Number,
+    staked: Number,
+    pool_liquidity: Number,
+    lend_supplied: Number,
 }, { collection: "sienna_token_statistics" });
 
 
@@ -42,6 +45,9 @@ export interface SiennaTokenHistoricalDataDocument extends mongoose.Document {
     market_cap_usd: number;
     max_supply: string;
     total_value_locked: number;
+    staked: number;
+    pool_liquidity: number;
+    lend_supplied: number;
 }
 export const SiennaTokenHistoricalDataSchema = new mongoose.Schema({
     circulating_supply: Number,
@@ -49,7 +55,10 @@ export const SiennaTokenHistoricalDataSchema = new mongoose.Schema({
     price_usd: Number,
     market_cap_usd: Number,
     max_supply: Number,
-    total_value_locked: Number
+    total_value_locked: Number,
+    staked: Number,
+    pool_liquidity: Number,
+    lend_supplied: Number
 }, { collection: "sienna_token_historical_data" });
 
 
