@@ -74,7 +74,7 @@ async function PairsLiquidity(pools, tokens) {
         const vol2 = new Decimal(pool.assets[1].amount).div(new Decimal(10).pow(token2.decimals));
         const vol2USD = new Decimal(vol2).mul(token2.price);
 
-        return new Decimal(prev).add(vol1USD).add(vol2USD);
+        return new Decimal(prev).add(vol1USD).add(vol2USD).toNumber();
 
     }, 0);
 }
@@ -158,7 +158,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const staked = rewards_data.reduce((prev, pool) => {
         const poolTokens = new Decimal(pool.total_locked).div(new Decimal(10).pow(pool.inc_token.decimals));
         const poolUSD = new Decimal(poolTokens).mul(token.price);
-        return new Decimal(prev).add(poolUSD);
+        return new Decimal(prev).add(poolUSD).toNumber();
     }, 0);
 
 
