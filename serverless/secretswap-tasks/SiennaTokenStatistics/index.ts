@@ -110,29 +110,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     const circulating_supply = new Decimal(fixedValue.supply).sub(tokensLockedByTeam).add(fixedValue.vesting || 0).toNumber();
 
-    await db.collection("sienna_token_statistics").updateOne({ name: token.name, symbol: token.display_props.symbol },
-        {
-            $set: {
-                total_supply: new Decimal(token_info.total_supply).div(
-                    Decimal.pow(10, token_info.decimals)
-                ).toNumber(),
-                name: token.name,
-                symbol: token.display_props.symbol,
-                decimals: token_info.decimals,
-                circulating_supply: circulating_supply,
-                price_usd: new Decimal(token.price).toNumber(),
-                contract_address: token.dst_address,
-                market_cap_usd: new Decimal(token.price).mul(circulating_supply).toNumber(),
-                tokens_locked_by_team: tokensLockedByTeam,
-                network: "Secret Network",
-                type: "SNIP-20",
-                max_supply: new Decimal(token_info.total_supply).div(
-                    Decimal.pow(10, token_info.decimals)
-                ).toNumber()
-            }
-        }, { upsert: true });
-
-
 
     const pools = await db.collection("secretswap_pools").find().toArray().catch(
         (err) => {
@@ -168,6 +145,34 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const pool_liquidity = await PairsLiquidity(pools, tokens);
 
     const total_value_locked = new Decimal(staked).add(lend_supplied).add(pool_liquidity).toNumber();
+
+
+
+    await db.collection("sienna_token_statistics").updateOne({ name: token.name, symbol: token.display_props.symbol },
+        {
+            $set: {
+                total_supply: new Decimal(token_info.total_supply).div(
+                    Decimal.pow(10, token_info.decimals)
+                ).toNumber(),
+                name: token.name,
+                symbol: token.display_props.symbol,
+                decimals: token_info.decimals,
+                circulating_supply: circulating_supply,
+                price_usd: new Decimal(token.price).toNumber(),
+                contract_address: token.dst_address,
+                market_cap_usd: new Decimal(token.price).mul(circulating_supply).toNumber(),
+                tokens_locked_by_team: tokensLockedByTeam,
+                network: "Secret Network",
+                type: "SNIP-20",
+                max_supply: new Decimal(token_info.total_supply).div(
+                    Decimal.pow(10, token_info.decimals)
+                ).toNumber(),
+                staked,
+                lend_supplied,
+                pool_liquidity
+            }
+        }, { upsert: true });
+
 
     await db.collection("sienna_token_historical_data").insertOne({
         date: new Date(),

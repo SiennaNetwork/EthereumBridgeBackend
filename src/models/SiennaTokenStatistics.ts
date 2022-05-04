@@ -13,6 +13,9 @@ export interface SiennaTokenStatisticDocument extends mongoose.Document {
     contract_address: string;
     max_supply: string;
     tokens_locked_by_team: string;
+    staked: number;
+    pool_liquidity: number;
+    lend_supplied: number;
 
 }
 export const SiennaTokenStatisticSchema = new mongoose.Schema({
