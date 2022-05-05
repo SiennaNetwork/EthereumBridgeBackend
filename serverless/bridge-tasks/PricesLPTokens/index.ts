@@ -31,7 +31,6 @@ function getToken(tokens: any[], address: string) {
 function getAsset(assets: any[], address) {
     return assets.find(a => a.info.token.contract_addr.toLowerCase().includes(address.toLowerCase()));
 }
-
 const getLPPrice = async (secret_token: any, tokens: any[], pairs: any[], pools: any[]): Promise<string> => {
     try {
 
@@ -92,6 +91,30 @@ const getLPPrice = async (secret_token: any, tokens: any[], pairs: any[], pools:
     }
 };
 
+const getSLPrice = async (LPToken, lend_data) => {
+    const market = lend_data.data.find(m => m.market === LPToken.address);
+    if (!market) return "NaN";
+    return new Decimal(market.token_price).mul(market.exchange_rate).toFixed(4);
+};
+
+const getPrice = async (poolToken, tokens, secret_tokens, pairs, pools, lend_data) => {
+    if (poolToken.symbol.indexOf("LP-") === 0) return getLPPrice(poolToken, tokens, pairs, pools);
+    if (poolToken.symbol.indexOf("sl-") === 0) return getSLPrice(poolToken, lend_data);
+    let token;
+
+    token = tokens.find(t => t.dst_address === poolToken.address);
+    if (token) return token.price;
+
+    token = secret_tokens.find(t => t.address === poolToken.address);
+    if (token) return token.price;
+
+    return "NaN";
+};
+
+
+
+
+
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
@@ -146,6 +169,36 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             resolve(null);
         });
     });
+
+    const rewards: any[] = await db.collection("rewards_data").find({}).limit(1000).toArray().catch(
+        (err: any) => {
+            context.log(err);
+            throw new Error("Failed to get rewards from collection");
+        });
+
+    const lend_data: any = (await db.collection("sienna_lend_historical_data").find().sort({ date: -1 }).toArray())[0];
+
+    await new Promise((resolve) => {
+        eachLimit(rewards, 3, async (reward, cb): Promise<void> => {
+            const incPrice = await getPrice(reward.inc_token, tokens, secret_tokens, pairs, pools, lend_data);
+            const rewardPrice = await getPrice(reward.rewards_token, tokens, secret_tokens, pairs, pools, lend_data);
+
+            await db.collection("rewards_data").updateOne({
+                "lp_token_address": reward.lp_token_address,
+                version: reward.version
+            }, {
+                $set: {
+                    "inc_token.price": incPrice,
+                    "rewards_token.price": rewardPrice
+                }
+            });
+            cb();
+        }, () => {
+            resolve(null);
+        });
+    });
+
+
     await client.close();
 
 

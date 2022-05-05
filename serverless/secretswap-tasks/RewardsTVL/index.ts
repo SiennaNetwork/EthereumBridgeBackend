@@ -43,38 +43,13 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const seed = EnigmaUtils.GenerateNewSeed();
     const queryClient = new CosmWasmClient(secretNodeURL, seed);
 
-    const lend_data: any = (await db.collection("sienna_lend_historical_data").find().sort({ date: -1 }).toArray())[0];
-
-    const getSLPrice = async (LPToken) => {
-        const market = lend_data.data.find(m => m.market === LPToken.address);
-        if (!market) return "0";
-        return new Decimal(market.token_price).mul(market.exchange_rate).toFixed(4);
-    };
-
-    const getPrice = async (poolToken) => {
-        if (poolToken.symbol.indexOf("sl-") === 0) return getSLPrice(poolToken);
-        let token;
-
-        token = tokens.find(t => t.dst_address === poolToken.address);
-        if (token) return token.price;
-
-        token = secret_tokens.find(t => t.address === poolToken.address);
-        if (token) return token.price;
-
-        return "0";
-    };
-
 
 
     await new Promise((resolve) => {
         eachLimit(pools, 2, async (pool, cb) => {
             try {
-                let total_locked;
-                let total_locked_usd = "0";
-
-                const rewardTokenPrice = await getPrice(pool.rewards_token);
-
-                const incTokenPrice = await getPrice(pool.inc_token);
+                let total_locked = "0";
+                let total_locked_usd = "NaN";
 
                 const poolAddr = pool.lp_token_address;
                 if (pool.version === "1" || pool.version === "2") {
@@ -89,17 +64,17 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     return cb();
                 }
 
-                if (incTokenPrice !== "0" && total_locked !== "0") total_locked_usd = new Decimal(total_locked).mul(incTokenPrice).toFixed(4);
-
+                if (total_locked !== "0" && pool.inc_token.price != "NaN") {
+                    if (pool.inc_token.symbol.indexOf("LP-") === 0) total_locked_usd = new Decimal(total_locked).times(pool.inc_token.price).toFixed(4);
+                    else total_locked_usd = new Decimal(total_locked).times(pool.inc_token.price).div(new Decimal(10).pow(pool.inc_token.decimals)).toFixed(4);
+                }
                 await db.collection("rewards_data").updateOne({
                     "lp_token_address": poolAddr,
                     version: pool.version
                 }, {
                     $set: {
                         total_locked,
-                        total_locked_usd,
-                        "inc_token.price": incTokenPrice,
-                        "rewards_token.price": rewardTokenPrice
+                        total_locked_usd
                     }
                 });
                 cb();
