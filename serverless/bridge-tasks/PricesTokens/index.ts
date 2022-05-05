@@ -5,6 +5,7 @@ import axios from "axios";
 import { symbolsMap } from "./utils";
 import { CosmWasmClient, EnigmaUtils } from "secretjs";
 import { ExchangeContract } from "amm-types/dist/lib/exchange";
+import { eachLimit } from "async";
 
 const coinGeckoUrl = "https://api.coingecko.com/api/v3/simple/price?";
 const mongodbName: string = process.env["mongodbName"];
@@ -59,8 +60,8 @@ async function PriceFromPool(_id, db) {
     const contractHash = await queryClient.getCodeHashByContractAddr(token.dst_address);
     const exchange = new ExchangeContract(pair.contract_addr, null, queryClient);
 
-    const result = await exchange.simulate_swap(
-        {
+    try {
+        const result = await exchange.simulate_swap({
             token: {
                 custom_token: {
                     contract_addr: token.dst_address,
@@ -68,9 +69,12 @@ async function PriceFromPool(_id, db) {
                 }
             },
             amount: Decimal.pow(10, token.decimals).toString()
-        }
-    );
-    return Decimal.mul(comparisonToken.price, Decimal.div(result.return_amount, Decimal.pow(10, comparisonToken.decimals))).toFixed(4);
+        });
+        return Decimal.mul(comparisonToken.price, Decimal.div(result.return_amount, Decimal.pow(10, comparisonToken.decimals))).toFixed(4);
+    } catch (e) {
+        return "NaN";
+    }
+
 }
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
@@ -102,6 +106,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     const coingecko_tokens = tokens_mapped.filter(t => t.coingecko_id); //price can be grabbed from coingecko
     const non_coingecko_tokens = tokens_mapped.filter(t => !t.coingecko_id); //price can NOT be grabbed from coingecko
+
     const oracle_prices = await CoinGeckoBulk(coingecko_tokens.map(t => t.coingecko_id));
 
     await Promise.all(coingecko_tokens.map(token => {
@@ -117,19 +122,24 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         } else non_coingecko_tokens.push(token); //get price from Pool (if any)
     }));
 
+    await new Promise((resolve) => {
+        eachLimit(non_coingecko_tokens, 2, async (token, cb) => {
+            const price = await PriceFromPool(token._id, db);
+            await client
+                .db(mongodbName)
+                .collection("token_pairing")
+                .updateOne({ _id: token._id }, {
+                    $set: {
+                        price
+                    }
+                });
+            cb();
+        }, () => {
+            resolve(null);
+        });
+    });
 
-
-    await Promise.all(non_coingecko_tokens.map(async token => {
-        const price = await PriceFromPool(token._id, db);
-        return client
-            .db(mongodbName)
-            .collection("token_pairing")
-            .updateOne({ _id: token._id }, {
-                $set: {
-                    price
-                }
-            });
-    }));
+    await client.close();
 };
 
 

@@ -3,6 +3,7 @@ import { MongoClient } from "mongodb";
 import Decimal from "decimal.js";
 import { Snip20Contract } from "amm-types/dist/lib/snip20";
 import { CosmWasmClient, EnigmaUtils } from "secretjs";
+import { eachLimit } from "async";
 
 const mongodbName: string = process.env["mongodbName"];
 const mongodbUrl: string = process.env["mongodbUrl"];
@@ -36,7 +37,9 @@ const getLPPrice = async (secret_token: any, tokens: any[], pairs: any[], pools:
 
         const snip20Contract = new Snip20Contract(secret_token.address, null, queryClient);
         const token_info = await snip20Contract.get_token_info();
+
         const addresses = token_info.name.split("SiennaSwap Liquidity Provider (LP) token for ")[1];
+
         const address1 = addresses.split("-")[0];
         const address2 = addresses.split("-")[1];
 
@@ -132,18 +135,17 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         }
     );
 
-    await Promise.all(
-        secret_tokens.map(async (secret_token) => {
+    await new Promise((resolve) => {
+        eachLimit(secret_tokens, 3, async (secret_token, cb): Promise<void> => {
             const price = await getLPPrice(secret_token, tokens, pairs, pools);
-            return db.collection("secret_tokens").updateOne({ "_id": secret_token._id },
-                {
-                    $set: {
-                        price
-                    }
-                });
-        })
-    );
-
+            await db.collection("secret_tokens").updateOne({ "_id": secret_token._id }, {
+                $set: { price }
+            });
+            cb();
+        }, () => {
+            resolve(null);
+        });
+    });
     await client.close();
 
 
