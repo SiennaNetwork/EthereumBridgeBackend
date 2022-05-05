@@ -1,18 +1,23 @@
-import { AzureFunction, Context } from "@azure/functions"
+import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import Decimal from "decimal.js";
 import { Snip20Contract } from "amm-types/dist/lib/snip20";
-import { CosmWasmClient, EnigmaUtils, SigningCosmWasmClient, Secp256k1Pen } from "secretjs";
+import { CosmWasmClient, EnigmaUtils } from "secretjs";
+import { eachLimit } from "async";
+
 const mongodbName: string = process.env["mongodbName"];
 const mongodbUrl: string = process.env["mongodbUrl"];
 const secretNodeURL = process.env["secretNodeURL"];
-const mnemonic = process.env["mnemonic"];
-const sender_address = process.env["sender_address"];
+
+
+const seed = EnigmaUtils.GenerateNewSeed();
+const queryClient = new CosmWasmClient(secretNodeURL, seed);
+
 
 function getPair(pairs: any[], token1_addr: string, token2_addr: string) {
     return pairs.find(pair =>
         pair.asset_infos.filter(a => a.token.contract_addr === token1_addr).length + pair.asset_infos.filter(a => a.token.contract_addr === token2_addr).length > 1
-    )
+    );
 }
 
 function getPool(pools: any[], id) {
@@ -27,18 +32,14 @@ function getAsset(assets: any[], address) {
     return assets.find(a => a.info.token.contract_addr.toLowerCase().includes(address.toLowerCase()));
 }
 
-
-const getLPPrice = async (secret_token: any, tokens: any[], pairs: any[], pools: any[], context?: any): Promise<string> => {
+const getLPPrice = async (secret_token: any, tokens: any[], pairs: any[], pools: any[]): Promise<string> => {
     try {
-        const pen = await Secp256k1Pen.fromMnemonic(mnemonic);
 
-        const seed = EnigmaUtils.GenerateNewSeed();
-        const queryClient = new CosmWasmClient(secretNodeURL, seed);
-        const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes));
-
-        const snip20Contract = new Snip20Contract(secret_token.address, signingCosmWasmClient, queryClient);
+        const snip20Contract = new Snip20Contract(secret_token.address, null, queryClient);
         const token_info = await snip20Contract.get_token_info();
+
         const addresses = token_info.name.split("SiennaSwap Liquidity Provider (LP) token for ")[1];
+
         const address1 = addresses.split("-")[0];
         const address2 = addresses.split("-")[1];
 
@@ -87,7 +88,6 @@ const getLPPrice = async (secret_token: any, tokens: any[], pairs: any[], pools:
             .toFixed()
             .toString();
     } catch (err) {
-        context.log(`Failed calculating price for ${secret_token.display_props.symbol}: ${err}`);
         return "NaN";
     }
 };
@@ -135,18 +135,17 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         }
     );
 
-    await Promise.all(
-        secret_tokens.map(async (secret_token) => {
-            const price = await getLPPrice(secret_token, tokens, pairs, pools, context);
-            await db.collection("secret_tokens").updateOne({ "_id": secret_token._id },
-                {
-                    $set: {
-                        price: price
-                    }
-                });
-        })
-    );
-
+    await new Promise((resolve) => {
+        eachLimit(secret_tokens, 3, async (secret_token, cb): Promise<void> => {
+            const price = await getLPPrice(secret_token, tokens, pairs, pools);
+            await db.collection("secret_tokens").updateOne({ "_id": secret_token._id }, {
+                $set: { price }
+            });
+            cb();
+        }, () => {
+            resolve(null);
+        });
+    });
     await client.close();
 
 
