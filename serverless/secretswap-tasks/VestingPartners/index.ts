@@ -160,6 +160,12 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     await new Promise((mainResolver) => {
         eachLimit(uniquePairs, 1, async (pair, CBRPT) => {
+            const vested = await checkIfVested(pair);
+            if (vested) {
+                HTTPResponse.push({ rpt_address: pair.RPT, success: false, error: "Nothing to claim right now" });
+                return CBRPT();
+            }
+
             let call = true;
             const logs = [];
             let vest_success: boolean, vest_result, vest_error, vest_fee;
