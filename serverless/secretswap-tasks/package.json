@@ -13,7 +13,7 @@
   "devDependencies": {
     "@azure/functions": "^3.0.0",
     "npm-run-all": "^4.1.5",
-    "typescript": "^3.3.3"
+    "typescript": "^4.7.2"
   },
   "dependencies": {
     "@bandprotocol/bandchain.js": "^2.0.3",
@@ -27,6 +27,7 @@
     "mongodb": "^3.6.6",
     "node-fetch": "^2.6.1",
     "secretjs": "0.17.5",
+    "sienna-liquidator": "github:SiennaNetwork/lend-liquidation-bot#master",
     "siennajs": "^0.2.0-beta.5",
     "underscore": "^1.13.1"
   },
