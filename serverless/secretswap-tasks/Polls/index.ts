@@ -13,22 +13,31 @@ const governance_address = process.env["governance_address"];
 const seed = EnigmaUtils.GenerateNewSeed();
 const queryClient = new CosmWasmClient(secretNodeURL, seed);
 
+
 enum PollStatus {
     Active = "active",
     Passed = "passed",
     Failed = "failed"
 }
 
+enum PollType {
+    SiennaRewards = "sienna_rewards",
+    SiennaSwapParameters = "sienna_swap_parameters",
+    Other = "other"
+}
+
+interface PollMetadata {
+    title: string;
+    description: string;
+    poll_type: PollType;
+}
+
 interface Poll {
     id: number;
     creator: string;
-    metadata: {
-        title: string;
-        description: string;
-        poll_type: string;
-    };
+    metadata: PollMetadata;
     expiration: {
-        at_time: number;
+        at_time: number
     };
     status: PollStatus;
     current_quorum: number;
@@ -39,31 +48,27 @@ async function get_polls(): Promise<Poll[]> {
         let polls: Poll[] = [];
         try {
             const result = await queryClient.queryContractSmart(governance_address, {
-                governance: {
-                    polls: {
-                        now: Math.round(Date.now() / 1000),
-                        page: 1,
-                        take: 100,
-                        asc: true
-                    }
+                polls: {
+                    now: Math.round(Date.now() / 1000),
+                    page: 1,
+                    take: 100,
+                    asc: true
                 }
             });
-            polls = polls.concat(result.governance.polls.polls);
-            const nr_of_polls = result.governance.polls.total;
+            polls = polls.concat(result.polls);
+            const nr_of_polls = result.total;
             let page = 2;
             whilst(
                 (callback) => callback(null, page <= nr_of_polls),
                 async (callback) => {
                     const page_result = await queryClient.queryContractSmart(governance_address, {
-                        governance: {
-                            polls: {
-                                now: Math.round(Date.now() / 1000),
-                                page: page,
-                                take: 100, asc: true
-                            }
+                        polls: {
+                            now: Math.round(Date.now() / 1000),
+                            page: page,
+                            take: 100, asc: true
                         }
                     });
-                    polls = polls.concat(page_result.governance.polls.polls);
+                    polls = polls.concat(page_result.polls);
                     page++;
                     callback();
                 }, () => {

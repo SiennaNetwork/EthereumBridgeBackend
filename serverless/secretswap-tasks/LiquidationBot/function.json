@@ -1,0 +1,11 @@
+{
+  "bindings": [
+    {
+      "name": "myTimer",
+      "type": "timerTrigger",
+      "direction": "in",
+      "schedule": "30 17 */1 * * *"
+    }
+  ],
+  "scriptFile": "../dist/LiquidationBot/index.js"
+}

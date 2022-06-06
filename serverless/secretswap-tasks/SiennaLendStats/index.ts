@@ -41,7 +41,7 @@ const LendMarkets = async (): Promise<Market[]> => {
 };
 
 const BandTokenPrice = async (symbol) => {
-    const band_data = (await axios.get(`${BAND_REST_URL}request_prices`, { params: { symbols: symbol } })).data.price_results;
+    const band_data = (await axios.get(`${BAND_REST_URL}/oracle/v1/request_prices`, { params: { symbols: symbol } })).data.price_results;
     const price = band_data.find((entry) => entry.symbol === symbol);
     const formatted_price = new Decimal(price.px).div(price.multiplier).toDecimalPlaces(2).toNumber();
     return formatted_price;
