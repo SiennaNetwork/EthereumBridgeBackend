@@ -10,7 +10,7 @@ const mongodbName = process.env["mongodbName"];
 const secretNodeURL = process.env["secretNodeURL"];
 const OVERSEER_ADDRESS = process.env["OVERSEER_ADDRESS"];
 const BAND_REST_URL = process.env["BAND_REST_URL"];
-const mnemonic = process.env["mnemonic"];
+const mnemonic = process.env["liquidation_mnemonic"];
 const chain_id = process.env["chain_id"] || 'pulsar-2';
 
 const lendVK = JSON.parse(process.env["LEND_VK"] || "{}");
