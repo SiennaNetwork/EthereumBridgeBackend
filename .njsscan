@@ -1,0 +1,16 @@
+- nodejs-extensions:
+  - .js
+  - .ts
+
+  ignore-paths:
+  - __MACOSX
+  - node_modules
+
+  ignore-extensions:
+  - .jsx
+
+  ignore-rules:
+  - express_xss
+
+  severity-filter:
+  - ERROR
