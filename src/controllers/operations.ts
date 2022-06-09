@@ -5,6 +5,7 @@ import {Swap, SwapDocument, SwapStatus} from "../models/Swap";
 import logger from "../util/logger";
 import validate from "../util/validate";
 import {check, param, validationResult} from "express-validator";
+import sanitize from 'mongo-sanitize';
 
 const hashValidator = /^[0-9a-zA-Z|]/g;
 
@@ -20,7 +21,7 @@ export const getOperationValidator = validate(checkSchema({
 
 export const getOperation = async (req: Request, res: Response) => {
 
-    const id = req.params.operation;
+    const id = sanitize(req.params.operation);
 
     const operation: OperationDocument = await Operation.findOne({id: id});
     if (!operation) {
