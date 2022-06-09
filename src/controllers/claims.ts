@@ -3,7 +3,7 @@ import { checkSchema } from "express-validator";
 import { ClaimProofDocument, EthClaimProofs, ScrtClaimProofs } from "../models/ClaimProof";
 import { bech32 } from "bech32";
 import validate from "../util/validate";
-
+import sanitize from 'mongo-sanitize';
 export const userAddrValidator = validate(checkSchema({
   addr: {
       in: ["params"],
@@ -15,7 +15,7 @@ export const userAddrValidator = validate(checkSchema({
 }));
 
 export const getEthProof = async (req: Request, res: Response) => {
-  const userAddr = req.params.addr;
+  const userAddr = sanitize(req.params.addr);
 
   const proof: ClaimProofDocument = await EthClaimProofs.findOne(
     { user: userAddr },
@@ -32,7 +32,7 @@ export const getEthProof = async (req: Request, res: Response) => {
 }
 
 export const getScrtProof = async (req: Request, res: Response) => {
-  const userAddr = req.params.addr;
+  const userAddr = sanitize(req.params.addr);
   const bytes = bech32.fromWords(bech32.decode(userAddr).words);
   const buf = Buffer.from(bytes);
   const userAddrBytes = "0x" + buf.toString("hex");

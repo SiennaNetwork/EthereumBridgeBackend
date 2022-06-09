@@ -4,7 +4,7 @@ import {Swap, SwapDocument} from "../models/Swap";
 import logger from "../util/logger";
 import {Operation, OperationDocument} from "../models/Operation";
 import validate from "../util/validate";
-
+import sanitize from 'mongo-sanitize';
 export const getAllSwaps = async (req: Request, res: Response) => {
     logger.debug('getAllSwaps');
     try {
@@ -29,7 +29,7 @@ export const getSwapInfoValidator = validate(checkSchema({
 }));
 
 export const getSwapInfo = async (req: Request, res: Response) => {
-    const id = req.params.swap;
+    const id = sanitize(req.params.swap);
     let swap: SwapDocument;
 
     const operation: OperationDocument = await Operation.findOne({id: id}, {_id: false});

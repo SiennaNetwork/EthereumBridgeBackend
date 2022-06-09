@@ -6,6 +6,7 @@ import { symbolsMap } from "./utils";
 import { CosmWasmClient, EnigmaUtils } from "secretjs";
 import { ExchangeContract } from "amm-types/dist/lib/exchange";
 import { eachLimit } from "async";
+import sanitize from 'mongo-sanitize';
 
 const coinGeckoUrl = "https://api.coingecko.com/api/v3/simple/price?";
 const mongodbName: string = process.env["mongodbName"];
@@ -34,7 +35,7 @@ async function CoinGeckoBulk(symbols: string[]) {
 };
 
 async function PriceFromPool(_id, db) {
-    const token = await db.collection("token_pairing").findOne({ _id });
+    const token = await db.collection("token_pairing").findOne({ _id:  sanitize(_id)});
     if (!token) return "NaN";
 
     let comparisonToken = await db.collection("token_pairing").findOne({ "display_props.symbol": "SIENNA" });
