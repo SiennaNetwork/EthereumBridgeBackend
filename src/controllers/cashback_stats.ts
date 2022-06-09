@@ -5,12 +5,13 @@ import {
   StatType,
   CashbackStatDocument,
 } from "../models/CashbackStats";
+import sanitize from 'mongo-sanitize';
 
 const MAX_RETRIES = 5;
 
 export const getCashbackRate = async (req: Request, res: Response) => {
   try {
-    const result = await CashbackStat.findOne({ type: StatType.NetworkAvg });
+    const result = await CashbackStat.findOne({ type: sanitize(StatType.NetworkAvg) });
 
     res.status(200);
     res.send({ rate: result.avg_rate, count: result.total_count });

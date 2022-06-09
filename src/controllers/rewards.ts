@@ -3,6 +3,7 @@ import {checkSchema} from "express-validator";
 import {RewardsDocument, Rewards} from "../models/Rewards";
 import Cache from "../util/cache";
 import validate from "../util/validate";
+import sanitize from 'mongo-sanitize';
 
 const cache = Cache.getInstance();
 
@@ -31,7 +32,7 @@ export const getPoolValidator = validate(checkSchema({
 }));
 
 export const getPool = async (req: Request, res: Response) => {
-    const poolAddr = req.params.pool;
+    const poolAddr = sanitize(req.params.pool);
     // eslint-disable-next-line @typescript-eslint/camelcase
     const pool: RewardsDocument = await cache.get(poolAddr, async () => Rewards.findOne({pool_address: poolAddr}, {_id: false}));
 

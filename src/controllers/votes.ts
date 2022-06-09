@@ -3,7 +3,7 @@ import logger from "../util/logger";
 import { SecretVotes, VoteDocument, VoteStatus } from "../models/SecretVote";
 import { CosmWasmClient } from "secretjs";
 import config from "../util/config";
-
+import sanitize from 'mongo-sanitize';
 interface VoteInfo {
   metadata: {
     title: string;
@@ -51,7 +51,7 @@ export const getAllVotes = async (req: Request, res: Response) => {
 };
 
 export const newVote = async (req: Request, res: Response) => {
-  const newVoteAddr = req.params.voteAddr;
+  const newVoteAddr = sanitize(req.params.voteAddr);
   const queryClient = new CosmWasmClient(config.secretNodeUrl);
 
   let resp: { vote_info: VoteInfo };
@@ -121,7 +121,7 @@ export const newVote = async (req: Request, res: Response) => {
 };
 
 export const finalizeVote = async (req: Request, res: Response) => {
-  const newVoteAddr = req.params.voteAddr;
+  const newVoteAddr = sanitize(req.params.voteAddr);
   const queryClient = new CosmWasmClient(config.secretNodeUrl);
 
   let info_resp: { vote_info: VoteInfo };
