@@ -15,6 +15,7 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: testnet
     steps:
     # checkout the repo
     - name: 'Checkout GitHub Action' 
@@ -22,14 +23,14 @@ jobs:
    
     - uses: azure/login@v1
       with:
-        client-id: ${{ env.AZURE_CLIENT_ID }}
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         
-    - name: Setup Node ${{ env.NODE_VERSION }}
+    - name: Setup Node
       uses: actions/setup-node@v1
       with:
-        node-version: ${{ env.NODE_VERSION }}
+        node-version: '16.x'
     
     - name: 'npm install, build, and test'
       run: |
