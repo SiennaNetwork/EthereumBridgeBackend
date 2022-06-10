@@ -3,7 +3,7 @@ import logger from "../util/logger";
 import { SecretVotes, VoteDocument, VoteStatus } from "../models/SecretVote";
 import { CosmWasmClient } from "secretjs";
 import config from "../util/config";
-import sanitize from 'mongo-sanitize';
+import sanitize from "mongo-sanitize";
 interface VoteInfo {
   metadata: {
     title: string;
@@ -58,7 +58,7 @@ export const newVote = async (req: Request, res: Response) => {
   try {
     resp = await queryClient.queryContractSmart(newVoteAddr, queryVoteInfo());
   } catch (err) {
-    const error = `Error querying voting contract ${newVoteAddr}`;
+    const error = "Error querying voting contract";
     logger.error(error);
     logger.error(JSON.stringify(err));
 
@@ -75,7 +75,7 @@ export const newVote = async (req: Request, res: Response) => {
   }).exec();
 
   if (vote !== null) {
-    const error = `Voting contract ${newVoteAddr} already exists`;
+    const error = "Voting contract already exists";
     logger.error(error);
 
     res.status(400);
@@ -107,7 +107,7 @@ export const newVote = async (req: Request, res: Response) => {
   ]);
 
   if (result.length === 0) {
-    const error = `Unable to add voting contract ${newVoteAddr}`;
+    const error = "Unable to add voting contract";
     logger.error(error);
 
     res.status(400);
@@ -131,7 +131,7 @@ export const finalizeVote = async (req: Request, res: Response) => {
       queryVoteInfo()
     );
   } catch (err) {
-    const error = `Error querying voting contract ${newVoteAddr}`;
+    const error = "Unable to add voting contract";
     logger.error(error);
     logger.error(JSON.stringify(err));
 
@@ -144,7 +144,7 @@ export const finalizeVote = async (req: Request, res: Response) => {
   const voteInfo = info_resp.vote_info;
 
   if (!voteInfo.config.finalized) {
-    const error = `Vote ${newVoteAddr} has not been finalized yet`;
+    const error = "Vote has not been finalized yet";
     logger.error(error);
 
     res.status(200);
@@ -164,7 +164,7 @@ export const finalizeVote = async (req: Request, res: Response) => {
         queryTally()
       );
     } catch (err) {
-      const error = `Error querying tally for ${newVoteAddr}`;
+      const error = "Error querying tally";
       logger.error(error);
       logger.error(JSON.stringify(err));
 
@@ -179,7 +179,7 @@ export const finalizeVote = async (req: Request, res: Response) => {
     try {
       locked_resp = await queryClient.queryContractSmart(config.governancePoolAddr, queryTotalLocked());
     } catch (err) {
-      const error = `Error querying tally for ${newVoteAddr}`;
+      const error = "Error querying tally";
       logger.error(error);
       logger.error(JSON.stringify(err));
 
@@ -209,7 +209,7 @@ export const finalizeVote = async (req: Request, res: Response) => {
       throw "no votes updated";
     }
   } catch (e) {
-    const error = `Could note update vote ${newVoteAddr}`;
+    const error = "Could note update vote";
     logger.error(error);
     logger.error(e);
 

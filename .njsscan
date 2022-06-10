@@ -9,8 +9,6 @@
   ignore-extensions:
   - .jsx
 
-  ignore-rules:
-  - express_xss
 
   severity-filter:
   - ERROR
