@@ -6,7 +6,7 @@ import { symbolsMap } from "./utils";
 import { CosmWasmClient, EnigmaUtils } from "secretjs";
 import { ExchangeContract } from "amm-types/dist/lib/exchange";
 import { eachLimit } from "async";
-import sanitize from 'mongo-sanitize';
+import sanitize from "mongo-sanitize";
 
 const coinGeckoUrl = "https://api.coingecko.com/api/v3/simple/price?";
 const mongodbName: string = process.env["mongodbName"];
