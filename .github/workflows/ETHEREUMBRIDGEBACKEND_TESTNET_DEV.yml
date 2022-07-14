@@ -31,7 +31,6 @@ jobs:
         npm install
         npm run build --if-present
         npm run test --if-present
-
     - name: ETHEREUMBRIDGEBACKEND_TESTNET
       uses: azure/webapps-deploy@v2
       with:
@@ -47,4 +46,3 @@ jobs:
         slot-name: Production
         publish-profile: ${{ secrets.ETHEREUMBRIDGEBACKEND_DEV }}
         package: .
-

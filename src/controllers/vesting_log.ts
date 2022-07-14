@@ -3,9 +3,7 @@ import moment from "moment";
 import { VestingLog, VestingLogDocument } from "../models/VestingLog";
 import Cache from "../util/cache";
 
-
 const cache = Cache.getInstance();
-
 export const getLog = async (req: Request, res: Response) => {
     const log: VestingLogDocument = await cache.get("vesting_log", async () => {
         return VestingLog.findOne({}, { _id: false }, { sort: { _id: -1 } });
