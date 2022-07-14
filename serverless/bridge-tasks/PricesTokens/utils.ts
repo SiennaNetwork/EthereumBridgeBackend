@@ -69,6 +69,7 @@ export const symbolsMap = {
     "stkd-SCRT": "stkd-scrt",
     "SILK": "silkchain",
     "SBTC": "bitcoin",
+    "seSCRT": "sescrt",
 
     //testnet coins
     "SITOK": "sienna",
