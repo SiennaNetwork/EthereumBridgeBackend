@@ -27,6 +27,7 @@ import * as siennaMarketPriceController from "./controllers/sienna_market_price"
 import * as alterController from "./controllers/alter";
 import * as vestingLogController from "./controllers/vesting_log";
 import * as pollController from "./controllers/polls";
+import * as projectController from "./controllers/projects";
 
 import config from "./util/config";
 
@@ -140,5 +141,8 @@ app.get("/vesting_log/", vestingLogController.getLog);
 
 app.get("/polls/", pollController.getPolls);
 app.get("/polls/:poll", pollController.getPollValidator, pollController.getPoll);
+
+app.get("/projects/", projectController.getProjects);
+app.get("/projects/:project", projectController.getProjectValidator, projectController.getProject);
 
 export default app;

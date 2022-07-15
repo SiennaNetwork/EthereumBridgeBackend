@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { checkSchema } from "express-validator";
 import { PollDocument, Poll } from "../models/Poll";
 import validate from "../util/validate";
-import sanitize from 'mongo-sanitize';
+import sanitize from "mongo-sanitize";
 
 export const getPolls = async (req: Request, res: Response) => {
     const polls: PollDocument[] = await Poll.find({}, { _id: false }, { sort: { id: 1 } });
