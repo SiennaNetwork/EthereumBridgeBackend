@@ -41,6 +41,7 @@
     "express-validator": "^6.10.0",
     "lodash": "^4.17.21",
     "lusca": "^1.6.1",
+    "merkletreejs": "^0.2.32",
     "moment": "^2.29.1",
     "mongo-sanitize": "^1.1.0",
     "mongodb": "^3.1.0",

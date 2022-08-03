@@ -5,7 +5,7 @@ class Cache {
     private cache: NodeCache;
 
     constructor() {
-        this.cache = new NodeCache();
+        this.cache = new NodeCache({ useClones: false });
 
     }
 

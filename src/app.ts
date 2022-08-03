@@ -144,5 +144,7 @@ app.get("/polls/:poll", pollController.getPollValidator, pollController.getPoll)
 
 app.get("/projects/", projectController.getProjects);
 app.get("/projects/:project", projectController.getProjectValidator, projectController.getProject);
+app.get("/projects/name/:name", projectController.getProjectsByNameValidator, projectController.getProjectsByName);
+app.get("/projects/whitelist/:project/:address", projectController.whitelistValidator, projectController.addressWhitelisted);
 
 export default app;
