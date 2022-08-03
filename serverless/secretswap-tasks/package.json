@@ -27,6 +27,7 @@
     "mongodb": "^3.6.6",
     "node-fetch": "^2.6.1",
     "secretjs": "0.17.5",
+    "secure-random": "^1.1.2",
     "sienna-liquidator": "github:SiennaNetwork/lend-liquidation-bot#master",
     "siennajs": "^0.2.0-beta.5",
     "underscore": "^1.13.1"
