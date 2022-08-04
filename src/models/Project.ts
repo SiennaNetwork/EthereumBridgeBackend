@@ -62,16 +62,15 @@ export interface ProjectDocument extends mongoose.Document {
     };
     startDate: Date;
     endDate: Date;
-    completionDate: Date;
-    /* How many users have participated in the sale */
-    totalUsersParticipated: number;
-    /* Total amount in payment token in the sale */
+    completionDate: Date; //How many users have participated in the sale
+    totalUsersParticipated: number; //Total amount in payment token in the sale
     totalFundsJoined: number;
     approved: boolean; //is project apporved for creation?
     created: boolean; //project instantiated
     creationDate: Date; //instantiation date
     failed: boolean; // project creation failed
     tx: string; // project creation transaction id
+    adminAddress: string; //address that receives the proceeds
 }
 
 export const projectSchema = new mongoose.Schema({
@@ -133,7 +132,8 @@ export const projectSchema = new mongoose.Schema({
     created: Boolean,
     creationDate: Date,
     tx: String,
-    failed: Boolean
+    failed: Boolean,
+    adminAddress: String
 }, { collection: "projects" });
 
 

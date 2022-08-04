@@ -8,7 +8,6 @@ import { createHash } from "crypto";
 
 import SecureRandom from "secure-random";
 
-
 function sha256(data: string): Buffer {
     return createHash("sha256").update(data).digest();
 }
@@ -125,7 +124,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 merkle_tree: {
                     root: tree.getRoot().toString("base64"),
                     leaves_count: tree.getLeafCount()
-                }
+                },
+                admin: project.adminAddress
             },
             entropy: SecureRandom.randomBuffer(32).toString("base64")
         }
