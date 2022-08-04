@@ -4,15 +4,11 @@ import validate from "../util/validate";
 import sanitize from "mongo-sanitize";
 import { ProjectDocument, Project } from "../models/Project";
 import { MerkleTree } from "merkletreejs";
-import { createHash } from "crypto";
 import Cache from "../util/cache";
 import { ObjectId } from "mongodb";
-
+import sha256 from "crypto-js/sha256";
 const cache = Cache.getInstance();
 
-function sha256(data: string): Buffer {
-    return createHash("sha256").update(data).digest();
-}
 
 export const getProjects = async (req: Request, res: Response) => {
     const projects: ProjectDocument[] = await cache.get("projects", async () => {
@@ -111,15 +107,14 @@ export const addressWhitelisted = async (req: Request, res: Response) => {
         return;
     }
 
-    const leaves = project.addresses.map(a => Buffer.from(a));
+
+    const leaves = project.addresses;
     const tree = new MerkleTree(leaves, sha256);
-    const leaf = sha256(address).toString("hex");
+    const leaf = sha256(address);
     try {
         res.json({
-            index: tree.getLeafIndex(Buffer.from(leaf)),
-            partial_tree: tree.getProof(Buffer.from(leaf)).map(d => {
-                return d.data.toString("base64");
-            })
+            index: tree.getLeafIndex(leaf as any),
+            partial_tree: tree.getProof(leaf.toString()).map(d => d.data.toString("base64"))
         });
     } catch (e) {
         res.status(500);

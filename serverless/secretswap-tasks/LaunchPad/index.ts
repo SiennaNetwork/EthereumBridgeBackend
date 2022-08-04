@@ -2,16 +2,10 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import { BroadcastMode, CosmWasmClient, EnigmaUtils, Secp256k1Pen, SigningCosmWasmClient } from "secretjs";
-
 import { MerkleTree } from "merkletreejs";
-import { createHash } from "crypto";
+import sha256 from "crypto-js/sha256";
 
 import SecureRandom from "secure-random";
-
-function sha256(data: string): Buffer {
-    return createHash("sha256").update(data).digest();
-}
-
 const secretNodeURL = process.env["secretNodeURL"];
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
@@ -74,7 +68,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const project = await db.collection("projects").findOne({ approved: true, created: false, failed: false });
     if (!project) return context.log("No Projects to Instantiate");
 
-    const leaves = project.addresses.map(a => Buffer.from(a));
+    const leaves = project.addresses;
     const tree = new MerkleTree(leaves, sha256);
     let projectToken;
     if (project.projectToken.address) {
@@ -132,7 +126,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     };
 
     const result = await signingCosmWasmClient.execute(IDO_ADDRESS, message);
-
 
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
