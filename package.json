@@ -75,7 +75,7 @@
     "@types/lodash": "^4.14.141",
     "@types/lusca": "^1.7.1",
     "@types/mongo-sanitize": "^1.0.1",
-    "@types/node": "^12.7.8",
+    "@types/node": "^16.11.47",
     "@types/node-forge": "^1.0.1",
     "@types/node-sass": "^4.11.0",
     "@types/nodemailer": "^6.2.1",
