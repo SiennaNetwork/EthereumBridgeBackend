@@ -27,6 +27,18 @@ class Cache {
         this.cache.set(key, data, 120);
         return data;
     }
+
+    setTtl(key: string, ttl: number): boolean {
+        return this.cache.ttl(key, ttl);
+    }
+
+    del(key: string): number {
+        return this.cache.del(key);
+    }
+
+    keys(): string[] {
+        return this.cache.keys();
+    }
 }
 
 export default Cache;

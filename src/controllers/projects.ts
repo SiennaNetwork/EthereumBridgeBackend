@@ -97,19 +97,26 @@ export const getProjectsByName = async (req: Request, res: Response) => {
     }
 };
 
+export const resetWhitelistCache = async (req: Request, res: Response) => {
+    const projectID = sanitize(req.params.project as unknown as string);
+    const result = cache.del(`whitelist_${projectID}`);
+    try {
+        res.json({ result });
+    } catch (e) {
+        res.status(500);
+        res.send(`Error: ${e}`);
+    }
+};
+
 export const addressWhitelisted = async (req: Request, res: Response) => {
     const projectID = sanitize(req.params.project as unknown as string);
     const address = sanitize(req.params.address as unknown as string);
-    const project: ProjectDocument = await Project.findOne({ _id: projectID }, { addresses: true });
-    if (!project) {
-        res.status(500);
-        res.send("Error: Project not found");
-        return;
-    }
-
-
-    const leaves = project.addresses;
-    const tree = new MerkleTree(leaves, sha256);
+    const tree: MerkleTree = await cache.get(`whitelist_${projectID}`, async () => {
+        const project: ProjectDocument = await Project.findOne({ _id: projectID }, { addresses: true });
+        const leaves = project?.addresses || [];
+        return new MerkleTree(leaves, sha256);
+    });
+    cache.setTtl(`whitelist_${projectID}`, 0);
     const leaf = sha256(address);
     try {
         res.json({

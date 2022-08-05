@@ -4,11 +4,13 @@ import { MongoClient } from "mongodb";
 import { BroadcastMode, CosmWasmClient, EnigmaUtils, Secp256k1Pen, SigningCosmWasmClient } from "secretjs";
 import { MerkleTree } from "merkletreejs";
 import sha256 from "crypto-js/sha256";
+import axios from "axios";
 
 import SecureRandom from "secure-random";
 const secretNodeURL = process.env["secretNodeURL"];
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
+const backendURL = process.env["backendURL"];
 
 const mnemonic = process.env["mnemonic"];
 const sender_address = process.env["sender_address"];
@@ -157,6 +159,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         await db.collection("projects").findOneAndUpdate({ _id: project._id }, {
             $set: updateObject
         });
+        await axios.post(`${backendURL}/projects/reset_whitelist_cache/${project._id}`);
     } else {
         await db.collection("projects").findOneAndUpdate({ _id: project._id }, {
             $set: {
