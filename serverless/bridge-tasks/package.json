@@ -24,6 +24,8 @@
     "@hackbg/formati": "^3.0.1",
     "@hackbg/konzola": "^1.1.2",
     "async": "^3.2.3",
+    "crypto-js": "^4.1.1",
+    "merkletreejs": "^0.2.32",
     "axios": "^0.26.0",
     "bottleneck": "^2.19.5",
     "decimal.js": "10.2.1",
