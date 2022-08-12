@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/camelcase */
 import mongoose from "mongoose";
 
 type TOKEN_USAGE = "BRIDGE" | "REWARDS" | "LPSTAKING";
@@ -7,6 +6,7 @@ type TOKEN_USAGE = "BRIDGE" | "REWARDS" | "LPSTAKING";
 export interface TokenDocument extends mongoose.Document {
     name: string;
     address: string;
+    address_code_hash: string;
     decimals: number;
     price: string;
     usage: TOKEN_USAGE[];
@@ -19,6 +19,7 @@ export interface TokenDocument extends mongoose.Document {
 export const tokenSchema = new mongoose.Schema({
     name: String,
     address: String,
+    address_code_hash: String,
     decimals: {
         type: Number,
         default: 6,

@@ -1,6 +1,4 @@
-/* eslint-disable @typescript-eslint/camelcase */
 import mongoose from "mongoose";
-
 
 export interface PairingDocument extends mongoose.Document {
     name: string;
@@ -8,6 +6,7 @@ export interface PairingDocument extends mongoose.Document {
     symbol: string;
     type: string;
     dst_address: string;
+    dst_address_code_hash: string;
     dst_coin: string;
     dst_network: string;
     src_address: string;
@@ -22,6 +21,7 @@ export interface PairingDocument extends mongoose.Document {
 
 export const pairingSchema = new mongoose.Schema({
     dst_address: String,
+    dst_address_code_hash: String,
     dst_coin: String,
     dst_network: String,
     src_address: String,

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/camelcase */
 import mongoose from "mongoose";
 export interface SiennaMarketPriceDocument extends mongoose.Document {
     price: number;

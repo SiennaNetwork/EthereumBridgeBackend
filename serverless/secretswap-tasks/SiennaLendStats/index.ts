@@ -136,7 +136,6 @@ const LendData = async (agent: Agent, tokens, rewards) => {
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
     if (!OVERSEER_ADDRESS) return;
-    const start = new Date().getTime();
     const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
     const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
 
@@ -164,7 +163,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     try {
         const data = await LendData(agent, tokens, rewards);
-        context.log((new Date().getTime() - start) / 1000);
         await db.collection("sienna_lend_historical_data").insertOne({
             date: new Date(),
             data

@@ -11,6 +11,7 @@ export interface ProjectDocument extends mongoose.Document {
     bannerImage: string; //banner image url
     externalLinks: any[];
     contractAddress?: string; //project contract address, after created === true
+    contractAddressCodeHash?: string; //project contract address ccode hash, after created === true
     sale_type: string; //pre_lock || swap || pre_lock_and_swap
     saleStatus?: {
         total_allocation: string;
@@ -62,9 +63,9 @@ export interface ProjectDocument extends mongoose.Document {
     };
     startDate: Date;
     endDate: Date;
-    completionDate: Date; //How many users have participated in the sale
-    totalUsersParticipated: number; //Total amount in payment token in the sale
-    totalFundsJoined: number;
+    completionDate: Date; //Date of the project funding completed
+    totalUsersParticipated: number; //How many users have participated in the sale
+    totalFundsJoined: number; //Total amount in payment token in the sale
     approved: boolean; //is project apporved for creation?
     created: boolean; //project instantiated
     creationDate: Date; //instantiation date
@@ -83,6 +84,7 @@ export const projectSchema = new mongoose.Schema({
     bannerImage: String,
     externalLinks: Array,
     contractAddress: String,
+    contractAddressCodeHash: String,
     sale_type: String,
     saleStatus: {
         total_allocation: String,

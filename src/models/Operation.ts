@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/camelcase */
 import mongoose, { Schema, Types } from "mongoose";
 import { SwapDocument, Swap } from "./Swap";
 
