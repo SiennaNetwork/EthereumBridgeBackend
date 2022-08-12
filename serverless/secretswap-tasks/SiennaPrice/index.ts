@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/camelcase */
-/* eslint-disable camelcase */
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import axios from "axios";

@@ -1,61 +1,56 @@
-/* eslint-disable @typescript-eslint/camelcase */
-/* eslint-disable camelcase */
+
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
-import { CosmWasmClient, EnigmaUtils, SigningCosmWasmClient, Secp256k1Pen } from "secretjs";
-import { Snip20Contract } from "amm-types/dist/lib/snip20";
 import { schedule } from "./circulating_supply";
+import { whilst } from "async";
 import moment from "moment";
 import { findWhere } from "underscore";
 import Decimal from "decimal.js";
+import { Wallet } from "secretjslatest";
+import { ChainMode, ScrtGrpc, LendOverseer, Agent, LendMarket, LendOverseerMarket, Snip20 } from "siennajslatest";
 
-const secretNodeURL = process.env["secretNodeURL"];
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
-const mnemonic = process.env["mnemonic"];
-const sender_address = process.env["sender_address"];
+
 const tokensLockedByTeam = process.env["tokens_locked_by_team"] && !isNaN(parseFloat(process.env["tokens_locked_by_team"])) ? new Decimal(process.env["tokens_locked_by_team"]).toNumber() : 0;
+
 const OVERSEER_ADDRESS = process.env["OVERSEER_ADDRESS"];
+const OVERSEER_ADDRESS_CODE_HASH = process.env["OVERSEER_ADDRESS_CODE_HASH"];
 
+const gRPCUrl = process.env["gRPCUrl"];
+const mnemonic = process.env["mnemonic"];
+const chainId = process.env["CHAINID"];
 
-
-async function LendMarkets(queryClient) {
-    if (!OVERSEER_ADDRESS) return [];
-    let markets = [], grabMarkets = true, start = 0;
-
-    while (grabMarkets) {
-        const result = await queryClient.queryContractSmart(OVERSEER_ADDRESS, {
-            markets: {
-                pagination: {
-                    limit: 10,
-                    start: start
+const LendMarkets = async (agent: Agent): Promise<LendOverseerMarket[]> => {
+    return new Promise((resolve) => {
+        const overseer = new LendOverseer(agent, { address: OVERSEER_ADDRESS, codeHash: OVERSEER_ADDRESS_CODE_HASH });
+        let call = true, start = 0, contracts = [];
+        whilst(
+            (callback) => callback(null, call),
+            async (callback) => {
+                const result = await overseer.getMarkets({ start, limit: 10 });
+                if (!result || !result.entries || !result.entries.length) {
+                    call = false;
+                    return callback();
                 }
+                start += result.entries.length;
+                contracts = contracts.concat(result.entries);
+                callback();
+            }, () => {
+                return resolve(contracts);
             }
-        });
-        if (result && result.entries && result.entries.length) {
-            markets = markets.concat(result.entries);
-            start = markets.length;
-        } else grabMarkets = false;
-    }
+        );
+    });
+};
 
-    return markets;
-}
-
-async function LendTVL(queryClient, tokens) {
-    const markets = await LendMarkets(queryClient);
-    const block = await queryClient.getHeight();
+async function LendTVL(agent: Agent, tokens) {
+    const markets = await LendMarkets(agent);
+    const block = await agent.height;
     return (await Promise.all(markets.map(async (market) => {
-        const marketState = await queryClient.queryContractSmart(market.contract.address, {
-            state: {
-                block
-            }
-        });
-        const exchange_rate = await queryClient.queryContractSmart(market.contract.address, {
-            exchange_rate: {
-                block
-            }
-        });
-        const underlying_asset = await queryClient.queryContractSmart(market.contract.address, { underlying_asset: {} });
+        const marketContract = new LendMarket(agent, { address: market.contract.address, codeHash: market.contract.code_hash });
+        const marketState = await marketContract.getState(block);
+        const exchange_rate = await marketContract.getExchangeRate(block);
+        const underlying_asset = await marketContract.getUnderlyingAsset();
         const lend_token = tokens.find(t => t.dst_address === underlying_asset.address);
         return new Decimal(marketState.total_supply).mul(exchange_rate).div(new Decimal(10).pow(lend_token.decimals)).mul(lend_token.price).toNumber();
     }))).reduce((prev, value) => new Decimal(prev).add(value).toNumber(), 0);
@@ -82,6 +77,10 @@ async function PairsLiquidity(pools, tokens) {
 
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
+
+    const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
+    const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
+
     const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
         (err: any) => {
             context.log(err);
@@ -95,15 +94,10 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             throw new Error("Failed to get tokens from collection");
         });
     if (!token) return context.log("SIENNA TOKEN NOT FOUND");
-    const pen = await Secp256k1Pen.fromMnemonic(mnemonic);
 
-    const seed = EnigmaUtils.GenerateNewSeed();
-    const queryClient = new CosmWasmClient(secretNodeURL, seed);
-    const signingCosmWasmClient = new SigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes));
+    const snip20Contract = new Snip20(agent, { address: token.dst_address, codeHash: token.dst_address_code_hash });
 
-    const snip20Contract = new Snip20Contract(token.dst_address, signingCosmWasmClient, queryClient);
-
-    const token_info = await snip20Contract.get_token_info();
+    const token_info = await snip20Contract.getTokenInfo();
 
     const fixedValue = findWhere(schedule, { date: moment().format("MM/DD/YYYY") });
     if (!fixedValue) return context.log(`Fixed value could not be found for date: ${moment().format("MM/DD/YYYY")}`);
@@ -140,7 +134,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
 
 
-    const lend_supplied = await LendTVL(queryClient, tokens);
+    const lend_supplied = await LendTVL(agent, tokens);
 
     const pool_liquidity = await PairsLiquidity(pools, tokens);
 

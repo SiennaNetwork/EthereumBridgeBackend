@@ -1,13 +1,16 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
-import { CosmWasmClient, EnigmaUtils, } from "secretjs";
-import { RewardsContract } from "amm-types/dist/lib/rewards";
 import { eachLimit } from "async";
 import Decimal from "decimal.js";
+import { Wallet } from "secretjslatest";
+import { ChainMode, ScrtGrpc, Rewards_v2, Rewards_v3 } from "siennajslatest";
 
-const secretNodeURL = process.env["secretNodeURL"];
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
+
+const gRPCUrl = process.env["gRPCUrl"];
+const mnemonic = process.env["mnemonic"];
+const chainId = process.env["CHAINID"];
 
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
@@ -24,26 +27,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             throw new Error("Failed to get rewards from collection");
         });
 
-
-    const tokens = await db.collection("token_pairing").find({}).limit(1000).toArray().catch(
-        (err: any) => {
-            context.log(err);
-            throw new Error("Failed to get tokens from collection");
-        }
-    );
-
-    const secret_tokens = await db.collection("secret_tokens").find({}).limit(1000).toArray().catch(
-        (err: any) => {
-            context.log(err);
-            throw new Error("Failed to get tokens from collection");
-        }
-    );
-
-
-    const seed = EnigmaUtils.GenerateNewSeed();
-    const queryClient = new CosmWasmClient(secretNodeURL, seed);
-
-
+    const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
+    const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
 
     await new Promise((resolve) => {
         eachLimit(pools, 2, async (pool, cb) => {
@@ -51,14 +36,14 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 let total_locked = "0";
                 let total_locked_usd = "NaN";
 
-                const poolAddr = pool.lp_token_address;
                 if (pool.version === "1" || pool.version === "2") {
-                    const fetchedPool = await queryClient.queryContractSmart(pool.rewards_contract, { pool_info: { at: new Date().getTime() } });
-                    total_locked = fetchedPool.pool_info.pool_locked;
+                    const rewardsContract = new Rewards_v2(agent, { address: pool.rewards_contract, codeHash: pool.rewards_contract_hash });
+                    const fetchedPool = await rewardsContract.getPoolInfo(new Date().getTime());
+                    total_locked = fetchedPool.pool_locked.toString();
                 } else if (pool.version === "3") {
-                    const rewardsContract = new RewardsContract(pool.rewards_contract, null, queryClient);
-                    const fetchedPool = await rewardsContract.get_pool(new Date().getTime());
-                    total_locked = fetchedPool.staked;
+                    const rewardsContract = new Rewards_v3(agent, { address: pool.rewards_contract, codeHash: pool.rewards_contract_hash });
+                    const fetchedPool = await rewardsContract.getPoolInfo(new Date().getTime());
+                    total_locked = fetchedPool.staked.toString();
                 } else {
                     context.log(`Reward version ${pool.version} is not supported`);
                     return cb();
@@ -69,8 +54,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     else total_locked_usd = new Decimal(total_locked).times(pool.inc_token.price).div(new Decimal(10).pow(pool.inc_token.decimals)).toFixed(4);
                 }
                 await db.collection("rewards_data").updateOne({
-                    "lp_token_address": poolAddr,
-                    version: pool.version
+                    _id: pool._id
                 }, {
                     $set: {
                         total_locked,

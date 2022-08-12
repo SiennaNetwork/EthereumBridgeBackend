@@ -11,6 +11,9 @@
     "sourceMap": true,
     "strict": false
   },
-  "include": ["./node_modules/sienna-liquidator", "*/*.ts"]
+  "include": [
+    "./node_modules/sienna-liquidator",
+    "./node_modules/siennajslatest",
+    "*/*.ts"
+  ]
 }
-
