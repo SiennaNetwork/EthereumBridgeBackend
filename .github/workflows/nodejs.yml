@@ -12,6 +12,8 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 16.x
+      - name: Get PNPM
+        run: npm i -g pnpm@7.9.0
       - name: Get npm cache directory
         id: npm-cache
         run: |
