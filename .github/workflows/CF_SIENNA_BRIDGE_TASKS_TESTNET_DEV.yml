@@ -34,9 +34,10 @@ jobs:
       shell: pwsh
       run: |
         pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
-        npm install
-        npm run build:production
-        npm run test --if-present
+        npm i -g pnpm@7.5.0
+        pnpm install
+        pnpm run build:production
+        pnpm run test --if-present
         popd
 
     - name: 'Run Azure Functions Action Testnet'

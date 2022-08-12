@@ -1,17 +1,16 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import Decimal from "decimal.js";
-import { Snip20Contract } from "amm-types/dist/lib/snip20";
-import { CosmWasmClient, EnigmaUtils } from "secretjs";
 import { eachLimit } from "async";
+import { Wallet } from "secretjslatest";
+import { Agent, ChainMode, ScrtGrpc, Snip20 } from "siennajs";
 
 const mongodbName: string = process.env["mongodbName"];
 const mongodbUrl: string = process.env["mongodbUrl"];
-const secretNodeURL = process.env["secretNodeURL"];
 
-
-const seed = EnigmaUtils.GenerateNewSeed();
-const queryClient = new CosmWasmClient(secretNodeURL, seed);
+const gRPCUrl = process.env["gRPCUrl"];
+const mnemonic = process.env["mnemonic"];
+const chainId = process.env["CHAINID"];
 
 
 function getPair(pairs: any[], token1_addr: string, token2_addr: string) {
@@ -31,11 +30,10 @@ function getToken(tokens: any[], address: string) {
 function getAsset(assets: any[], address) {
     return assets.find(a => a.info.token.contract_addr.toLowerCase().includes(address.toLowerCase()));
 }
-const getLPPrice = async (secret_token: any, tokens: any[], pairs: any[], pools: any[]): Promise<string> => {
+const getLPPrice = async (agent: Agent, secret_token: any, tokens: any[], pairs: any[], pools: any[]): Promise<string> => {
     try {
-
-        const snip20Contract = new Snip20Contract(secret_token.address, null, queryClient);
-        const token_info = await snip20Contract.get_token_info();
+        const snip20Contract = new Snip20(agent, { address: secret_token.address, codeHash: secret_token.address_code_hash });
+        const token_info = await snip20Contract.getTokenInfo();
 
         const addresses = token_info.name.split("SiennaSwap Liquidity Provider (LP) token for ")[1];
 
@@ -97,8 +95,8 @@ const getSLPrice = async (LPToken, lend_data) => {
     return new Decimal(market.token_price).mul(market.exchange_rate).toFixed(4);
 };
 
-const getPrice = async (poolToken, tokens, secret_tokens, pairs, pools, lend_data) => {
-    if (poolToken.symbol.indexOf("LP-") === 0) return getLPPrice(poolToken, tokens, pairs, pools);
+const getPrice = async (agent: Agent, poolToken, tokens, secret_tokens, pairs, pools, lend_data) => {
+    if (poolToken.symbol.indexOf("LP-") === 0) return getLPPrice(agent, poolToken, tokens, pairs, pools);
     if (poolToken.symbol.indexOf("sl-") === 0) return getSLPrice(poolToken, lend_data);
     let token;
 
@@ -112,12 +110,10 @@ const getPrice = async (poolToken, tokens, secret_tokens, pairs, pools, lend_dat
 };
 
 
-
-
-
-
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
+    const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
+    const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
 
     const client: MongoClient = await MongoClient.connect(mongodbUrl,
         { useUnifiedTopology: true, useNewUrlParser: true }).catch(
@@ -160,7 +156,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     await new Promise((resolve) => {
         eachLimit(secret_tokens, 3, async (secret_token, cb): Promise<void> => {
-            const price = await getLPPrice(secret_token, tokens, pairs, pools);
+            const price = await getLPPrice(agent, secret_token, tokens, pairs, pools);
             await db.collection("secret_tokens").updateOne({ "_id": secret_token._id }, {
                 $set: { price }
             });
@@ -176,12 +172,13 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             throw new Error("Failed to get rewards from collection");
         });
 
-    const lend_data: any = (await db.collection("sienna_lend_historical_data").find().sort({ date: -1 }).toArray())[0];
+    //get the latest entry but thousands of entries, filter by last day before sorting
+    const lend_data: any = (await db.collection("sienna_lend_historical_data").find({ date: { $gt: new Date(new Date().getTime() - 1 * 24 * 60 * 60 * 1000) } }).sort({ _id: -1 }).toArray())[0];
 
     await new Promise((resolve) => {
         eachLimit(rewards, 3, async (reward, cb): Promise<void> => {
-            const incPrice = await getPrice(reward.inc_token, tokens, secret_tokens, pairs, pools, lend_data);
-            const rewardPrice = await getPrice(reward.rewards_token, tokens, secret_tokens, pairs, pools, lend_data);
+            const incPrice = await getPrice(agent, reward.inc_token, tokens, secret_tokens, pairs, pools, lend_data);
+            const rewardPrice = await getPrice(agent, reward.rewards_token, tokens, secret_tokens, pairs, pools, lend_data);
 
             await db.collection("rewards_data").updateOne({
                 "lp_token_address": reward.lp_token_address,

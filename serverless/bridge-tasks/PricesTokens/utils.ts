@@ -70,6 +70,9 @@ export const symbolsMap = {
     "SILK": "silkchain",
     "SBTC": "bitcoin",
     "usescrt": "sescrt",
+    "SAKT": "akash-network",
+    "SGRAVITON": "graviton",
+    "SSTARS": "stargaze",
 
     //testnet coins
     "SITOK": "sienna",
