@@ -109,7 +109,6 @@ const getPrice = async (agent: Agent, poolToken, tokens, secret_tokens, pairs, p
     return "NaN";
 };
 
-
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
     const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
