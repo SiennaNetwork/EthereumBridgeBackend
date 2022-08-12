@@ -2,7 +2,7 @@
   "version": "",
   "scripts": {
     "build": "tsc",
-    "build:production": "pnpm run prestart && pnpm prune --production",
+    "build:production": "pnpm i && pnpm run prestart && pnpm prune --production",
     "prestart": "pnpm run build",
     "watch": "tsc --w",
     "preinstall": "npx only-allow pnpm",
