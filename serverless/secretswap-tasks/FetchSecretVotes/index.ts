@@ -1,6 +1,6 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient, Collection } from "mongodb";
-import { ScrtGrpc, ChainMode } from "siennajslatest";
+import { ScrtGrpc, ChainMode } from "siennajs";
 import { Wallet, SecretNetworkClient } from "secretjslatest";
 
 const mongodbName: string = process.env["mongodbName"];

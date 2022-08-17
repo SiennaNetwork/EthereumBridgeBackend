@@ -3,7 +3,7 @@ import { MongoClient } from "mongodb";
 import { MerkleTree } from "merkletreejs";
 import sha256 from "crypto-js/sha256";
 import axios from "axios";
-import { Launchpad, ScrtGrpc, ChainMode, ContractLink, IDO } from "siennajslatest";
+import { Launchpad, ScrtGrpc, ChainMode, ContractLink, IDO } from "siennajs";
 import { Wallet, SecretNetworkClient } from "secretjslatest";
 
 import SecureRandom from "secure-random";

@@ -7,7 +7,7 @@ import moment from "moment";
 import { findWhere } from "underscore";
 import Decimal from "decimal.js";
 import { Wallet } from "secretjslatest";
-import { ChainMode, ScrtGrpc, LendOverseer, Agent, LendMarket, LendOverseerMarket, Snip20 } from "siennajslatest";
+import { ChainMode, ScrtGrpc, LendOverseer, Agent, LendMarket, LendOverseerMarket, Snip20 } from "siennajs";
 
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];

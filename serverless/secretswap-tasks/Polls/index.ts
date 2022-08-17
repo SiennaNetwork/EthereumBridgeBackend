@@ -2,7 +2,7 @@ import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import { whilst } from "async";
 import { Wallet } from "secretjslatest";
-import { ChainMode, ScrtGrpc, Agent, Poll, Polls } from "siennajslatest";
+import { ChainMode, ScrtGrpc, Agent, Poll, Polls } from "siennajs";
 
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];

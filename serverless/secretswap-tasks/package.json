@@ -40,8 +40,7 @@
     "secretjslatest": "npm:secretjs@1.3.0-beta.7",
     "secure-random": "^1.1.2",
     "sienna-liquidator": "github:SiennaNetwork/lend-liquidation-bot#master",
-    "siennajs": "^0.2.0-beta.5",
-    "siennajslatest": "github:SiennaNetwork/siennajs#1.0.0-rc.10",
+    "siennajs": "github:SiennaNetwork/siennajs#1.0.0-rc.12",
     "underscore": "^1.13.1",
     "yaml": "^2.1.1"
   },
