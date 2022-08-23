@@ -1,7 +1,12 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
-import { SecretNetworkClient } from "secretjslatest";
-import { batchMultiCall } from "../lib/multicall";
+import Bottleneck from "bottleneck";
+import { Wallet, SecretNetworkClient } from "secretjslatest";
+import { ChainMode, ScrtGrpc } from "siennajs";
+
+const limiter = new Bottleneck({
+  maxConcurrent: 1
+});
 
 const mongodbName: string = process.env["mongodbName"];
 const mongodbUrl: string = process.env["mongodbUrl"];
@@ -13,6 +18,7 @@ const pairCodeId = Number(process.env["pairCodeId"]);
 const pairCodeIdV2 = Number(process.env["pairCodeIdV2"]);
 
 const gRPCUrl = process.env["gRPCUrl"];
+const mnemonic = process.env["mnemonic"];
 const chainId = process.env["CHAINID"];
 
 const timerTrigger: AzureFunction = async function (
@@ -30,6 +36,8 @@ const timerTrigger: AzureFunction = async function (
       throw new Error("Failed to get pools from collection");
     });
 
+  const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
+  const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
   const scrt_client = await SecretNetworkClient.create({ grpcWebUrl: gRPCUrl, chainId: chainId });
 
   try {
@@ -44,18 +52,11 @@ const timerTrigger: AzureFunction = async function (
 
     const contracts = contractsV1.concat(contractsV2);
 
-    const multi_result = await batchMultiCall(scrt_client, contracts.map(c => {
-      const pair = pairs.find(p => p.contract_addr === c.address);
-      return {
-        contract_address: c.address,
-        code_hash: pair && pair.contract_addr_code_hash
-      };
-    }), "pair_info");
+    await Promise.all(contracts.map(async contract => {
 
-    await Promise.all(contracts.map(async (contract, index) => {
       try {
-        const pair_info = multi_result[index] && multi_result[index].pair_info;
-        if (!pair_info) return;
+        const pair = pairs.find(p => p.contract_addr === contract.address);
+        const pair_info = (await limiter.schedule(() => agent.query({ address: contract.address, codeHash: pair && pair.contract_addr_code_hash }, "pair_info")) as any).pair_info;
         await Promise.all([client
           .db(mongodbName)
           .collection("secretswap_pools")
