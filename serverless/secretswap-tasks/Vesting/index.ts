@@ -8,9 +8,7 @@ import { Fee } from "siennajs";
 import structuredClone from "@ungap/structured-clone";
 import { MailService } from "@sendgrid/mail";
 
-
 global.structuredClone = structuredClone;
-
 
 const RPTContractAddress = process.env["RPTContractAddress"];
 const MGMTContractAddress = process.env["MGMTContractAddress"];
