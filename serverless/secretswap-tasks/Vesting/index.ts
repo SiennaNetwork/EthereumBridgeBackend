@@ -3,7 +3,7 @@ import { MongoClient } from "mongodb";
 import moment from "moment";
 import { eachLimit, whilst } from "async";
 import { Wallet } from "secretjslatest";
-import { ChainMode, ScrtGrpc, Agent, RPT_Vested, MGMT_TGE, create_fee } from "siennajslatest";
+import { ChainMode, ScrtGrpc, Agent, RPT_Vested, MGMT_TGE, create_fee } from "siennajs";
 import { Fee } from "siennajs";
 import structuredClone from "@ungap/structured-clone";
 import { MailService } from "@sendgrid/mail";

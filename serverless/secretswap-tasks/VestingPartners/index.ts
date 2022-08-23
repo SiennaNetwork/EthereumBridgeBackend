@@ -4,7 +4,7 @@ import moment from "moment";
 import { eachLimit, whilst } from "async";
 import { uniq } from "underscore";
 import { Wallet } from "secretjslatest";
-import { ChainMode, ScrtGrpc, Agent, RPT_Vested, MGMT_TGE, create_fee } from "siennajslatest";
+import { ChainMode, ScrtGrpc, Agent, RPT_Vested, MGMT_TGE, create_fee } from "siennajs";
 import { Fee } from "siennajs";
 import { MailService } from "@sendgrid/mail";
 
