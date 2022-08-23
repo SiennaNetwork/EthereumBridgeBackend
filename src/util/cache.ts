@@ -5,7 +5,7 @@ class Cache {
     private cache: NodeCache;
 
     constructor() {
-        this.cache = new NodeCache();
+        this.cache = new NodeCache({ useClones: false });
 
     }
 
@@ -26,6 +26,18 @@ class Cache {
         const data = await retrieveData();
         this.cache.set(key, data, 120);
         return data;
+    }
+
+    setTtl(key: string, ttl: number): boolean {
+        return this.cache.ttl(key, ttl);
+    }
+
+    del(key: string): number {
+        return this.cache.del(key);
+    }
+
+    keys(): string[] {
+        return this.cache.keys();
     }
 }
 

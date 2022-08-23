@@ -30,13 +30,16 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
 
-    - name: 'Resolve Project Dependencies Using Npm'
+    - name: Get PNPM
+      run: npm i -g pnpm@7.9.0
+
+    - name: 'Resolve Project Dependencies Using PNPM'
       shell: pwsh
       run: |
         pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
-        npm install
-        npm run build:production
-        npm run test --if-present
+        pnpm install
+        pnpm run build:production
+        pnpm run test --if-present
         popd
 
     - name: 'Run Azure Functions Action Testnet'

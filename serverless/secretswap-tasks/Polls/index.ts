@@ -1,73 +1,32 @@
-/* eslint-disable @typescript-eslint/camelcase */
-/* eslint-disable camelcase */
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
-import { CosmWasmClient, EnigmaUtils } from "secretjs";
 import { whilst } from "async";
+import { Wallet } from "secretjslatest";
+import { ChainMode, ScrtGrpc, Agent, Poll, Polls } from "siennajs";
 
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
-const secretNodeURL = process.env["secretNodeURL"];
-const governance_address = process.env["governance_address"];
 
-const seed = EnigmaUtils.GenerateNewSeed();
-const queryClient = new CosmWasmClient(secretNodeURL, seed);
+const GOVERNANCE_ADDRESS = process.env["GOVERNANCE_ADDRESS"];
+const GOVERNANCE_CODE_HASH = process.env["GOVERNANCE_CODE_HASH"];
 
+const gRPCUrl = process.env["gRPCUrl"];
+const mnemonic = process.env["mnemonic"];
+const chainId = process.env["CHAINID"];
 
-enum PollStatus {
-    Active = "active",
-    Passed = "passed",
-    Failed = "failed"
-}
-
-enum PollType {
-    SiennaRewards = "sienna_rewards",
-    SiennaSwapParameters = "sienna_swap_parameters",
-    Other = "other"
-}
-
-interface PollMetadata {
-    title: string;
-    description: string;
-    poll_type: PollType;
-}
-
-interface Poll {
-    id: number;
-    creator: string;
-    metadata: PollMetadata;
-    expiration: {
-        at_time: number
-    };
-    status: PollStatus;
-    current_quorum: number;
-}
-
-async function get_polls(): Promise<Poll[]> {
+async function get_polls(agent: Agent): Promise<Poll[]> {
     return new Promise(async (resolve) => {
+        const polls_class = new Polls(agent, { address: GOVERNANCE_ADDRESS, codeHash: GOVERNANCE_CODE_HASH });
         let polls: Poll[] = [];
         try {
-            const result = await queryClient.queryContractSmart(governance_address, {
-                polls: {
-                    now: Math.round(Date.now() / 1000),
-                    page: 1,
-                    take: 100,
-                    asc: true
-                }
-            });
+            const result = await polls_class.getPolls(1, 1, 100, 1);
             polls = polls.concat(result.polls);
             const nr_of_polls = result.total;
             let page = 2;
             whilst(
                 (callback) => callback(null, page <= nr_of_polls),
                 async (callback) => {
-                    const page_result = await queryClient.queryContractSmart(governance_address, {
-                        polls: {
-                            now: Math.round(Date.now() / 1000),
-                            page: page,
-                            take: 100, asc: true
-                        }
-                    });
+                    const page_result = await polls_class.getPolls(Math.round(Date.now() / 1000), page, 100, 1);
                     polls = polls.concat(page_result.polls);
                     page++;
                     callback();
@@ -88,7 +47,11 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             throw new Error("Failed to connect to database");
         }
     );
-    const polls = await get_polls();
+
+    const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
+    const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
+
+    const polls = await get_polls(agent);
     await Promise.all(polls.map((poll) => client
         .db(mongodbName)
         .collection("polls")
@@ -100,7 +63,5 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             { upsert: true }
         )));
 };
-
-
 
 export default timerTrigger;

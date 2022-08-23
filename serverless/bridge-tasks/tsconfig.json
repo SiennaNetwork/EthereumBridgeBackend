@@ -5,10 +5,14 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "allowJs": true,
-    "target": "es6",
+    "target": "es2016",
     "outDir": "dist",
     "rootDir": ".",
     "sourceMap": true,
     "strict": false
-  }
+  },
+  "include": [
+    "./node_modules/siennajs",
+    "*/*.ts"
+  ]
 }

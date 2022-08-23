@@ -8,10 +8,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v1
-      - name: Use Node.js 12.x
+      - name: Use Node.js 16.x
         uses: actions/setup-node@v1
         with:
-          node-version: 12.x
+          node-version: 16.x
+      - name: Get PNPM
+        run: npm i -g pnpm@7.9.0 && pnpm i ci
       - name: Get npm cache directory
         id: npm-cache
         run: |
@@ -22,9 +24,10 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
-      - name: npm install, build, and test
+      - name: pnpm install, build, and test
         run: |
-          npm ci --no-optional
-          npm run build --if-present
+          npm i -g pnpm@7.5.0
+          pnpm ci --no-optional
+          pnpm run build --if-present
         env:
           CI: true

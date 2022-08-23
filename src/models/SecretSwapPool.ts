@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/camelcase */
 import mongoose from "mongoose";
 
 export interface TokenPool {
@@ -24,6 +23,7 @@ export interface SecretSwapPoolDocument extends mongoose.Document {
   assets: Array<TokenPool | NativeTokenPool>;
   total_share: string;
   contract_version: number;
+  contract_addr_code_hash: string;
 }
 
 export const secretSwapPoolSchema = new mongoose.Schema(

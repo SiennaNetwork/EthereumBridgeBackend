@@ -1,8 +1,6 @@
-/* eslint-disable @typescript-eslint/camelcase */
-/* eslint-disable camelcase */
+
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
-
 import { Liquidator, Config, MarketConfig } from "sienna-liquidator/src/liquidator";
 
 const mongodbUrl = process.env["mongodbUrl"];
@@ -11,7 +9,7 @@ const secretNodeURL = process.env["secretNodeURL"];
 const OVERSEER_ADDRESS = process.env["OVERSEER_ADDRESS"];
 const BAND_REST_URL = process.env["BAND_REST_URL"];
 const mnemonic = process.env["liquidation_mnemonic"];
-const chain_id = process.env["chain_id"] || 'pulsar-2';
+const chain_id = process.env["CHAINID"] || "pulsar-2";
 
 const lendVK = JSON.parse(process.env["LEND_VK"] || "{}");
 
@@ -52,14 +50,14 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         const liquidator = await Liquidator.create(config);
         await liquidator.run_once();
     } catch (e) {
-        logs.push(e.toString())
+        logs.push(e.toString());
     }
     await db.collection("liquidation_bot_logs").insertOne({
         date: new Date(),
         logs
-    })
+    });
 
-    context.log('DONE');
+    context.log("DONE");
 };
 
 

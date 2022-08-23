@@ -1,11 +1,10 @@
-/* eslint-disable @typescript-eslint/camelcase */
 import mongoose from "mongoose";
 
 export interface ClaimProofDocument extends mongoose.Document {
   user: string;
-  index: Number;
+  index: number;
   amount: string;
-  proof: [String];
+  proof: [string];
 }
 
 export const ethProofSchema = new mongoose.Schema({

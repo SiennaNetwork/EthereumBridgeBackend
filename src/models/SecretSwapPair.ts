@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/camelcase */
 import mongoose from "mongoose";
 
 export interface Token {
@@ -17,6 +16,7 @@ export interface NativeToken {
 export interface SecretSwapPairDocument extends mongoose.Document {
   asset_infos: Array<Token | NativeToken>;
   contract_addr: string;
+  contract_addr_code_hash: string;
   liquidity_token: string;
   token_code_hash: string;
   asset0_volume: string;

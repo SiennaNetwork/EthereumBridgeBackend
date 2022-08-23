@@ -148,7 +148,6 @@ const coinGeckoUrl = "https://api.coingecko.com/api/v3/simple/price?";
 const ethPrice = async (): Promise<string> => {
     const price = await fetch(coinGeckoUrl + new URLSearchParams({
         ids: "ethereum",
-        // eslint-disable-next-line @typescript-eslint/camelcase
         vs_currencies: "USD"
     }));
     return (await price.json())["ethereum"].usd;

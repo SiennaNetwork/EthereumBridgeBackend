@@ -1,19 +1,16 @@
 import { AzureFunction, Context } from "@azure/functions";
-import { create_fee, Fee } from "amm-types/dist/lib/core";
-import { SigningCosmWasmClient, Secp256k1Pen, BroadcastMode } from "secretjs";
 import { MongoClient } from "mongodb";
 import moment from "moment";
 import { eachLimit, whilst } from "async";
 import { uniq } from "underscore";
+import { Wallet } from "secretjslatest";
+import { ChainMode, ScrtGrpc, Agent, RPT_Vested, MGMT_TGE, create_fee } from "siennajs";
+import { Fee } from "siennajs";
+import { MailService } from "@sendgrid/mail";
 
-const sgMail = require("@sendgrid/mail");
 
 const SIENNARPTContractAddress = process.env["RPTContractAddress"];
 const SIENNAMGMTContractAddress = process.env["MGMTContractAddress"];
-
-const secretNodeURL = process.env["secretNodeURL"];
-const mnemonic = process.env["mnemonic"];
-const sender_address = process.env["sender_address"];
 
 const vesting_fee_amount = process.env["vesting_fee_amount"] || "500000";
 const vesting_fee_gas = process.env["vesting_fee_gas"] || "2000000";
@@ -29,79 +26,25 @@ const sendGridFrom: string = process.env["send_grid_from"];
 const sendGridSubject: string = process.env["send_grid_subject"];
 const sendGridTo: string = process.env["send_grid_to"];
 
+const gRPCUrl = process.env["gRPCUrl"];
+const mnemonic = process.env["mnemonic"];
+const chainId = process.env["CHAINID"];
+
 
 interface RPTMGMTPair {
     RPT: string;
     MGMT: string;
 }
 
-class PatchedSigningCosmWasmClient extends SigningCosmWasmClient {
-    /* this assumes broadcastMode is set to BroadcastMode.Sync
-       which it is, via the constructor of the base ScrtAgentJS class
-       which, in turn, assumes the logs array is empty and just a tx hash is returned
-       the tx hash is then queried to get the full transaction result
-       or, if the transaction didn't actually commit, to retry it */
-    async postTx(tx: any): Promise<any> {
-        // only override for non-default broadcast modes
-        if ((this.restClient as any).broadcastMode === BroadcastMode.Block) {
-            console.info("broadcast mode is block, bypassing patch");
-            return super.postTx(tx);
-        }
-        // try posting the transaction
-        let submitRetries = 20;
-        while (submitRetries--) {
-            // get current block number
-            const sent = (await this.getBlock()).header.height;
-            // submit the transaction and get its id
-            const submitResult = await super.postTx(tx);
-            const id = submitResult.transactionHash;
-            // wait for next block
-            while (true) {
-                await new Promise(ok => setTimeout(ok, 1000));
-                const now = (await this.getBlock()).header.height;
-                //console.debug(id, sent, now)
-                if (now > sent) break;
-            }
-            await new Promise(ok => setTimeout(ok, 1000));
-            // once the block has incremented, get the full transaction result
-            let resultRetries = 20;
-            while (resultRetries--) {
-                try {
-                    const result = await this.restClient.get(`/txs/${id}`);
-                    // if result contains error, throw it
-                    const { raw_log } = result as any;
-                    if (raw_log.includes("failed")) throw new Error(raw_log);
-                    Object.assign(result, { transactionHash: id, logs: ((result as any).logs) || [] });
-                    return result;
-                }
-                catch (e) {
-                    // retry only on 404, throw all other errors to decrypt them
-                    if (!e.message.includes("404")) throw e;
-                    console.warn(`failed to query result of tx ${id} with the following error, ${resultRetries} retries left`);
-                    console.warn(e);
-                    await new Promise(ok => setTimeout(ok, 2000));
-                    continue;
-                }
-            }
-            console.warn(`failed to submit tx ${id}, ${submitRetries} retries left...`);
-            await new Promise(ok => setTimeout(ok, 1000));
-        }
-    }
-}
+const checkIfVested = async (agent: Agent, pair: RPTMGMTPair): Promise<boolean> => {
+    const mgmt_contract = new MGMT_TGE(agent, { address: pair.MGMT });
+    const status: any = await mgmt_contract.progress(pair.RPT, Math.floor(Date.now() / 1000));
+    return status.claimed === status.unlocked;
+};
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
-    const pen = await Secp256k1Pen.fromMnemonic(mnemonic);
-    const signingCosmWasmClient: SigningCosmWasmClient = new PatchedSigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes), null, null, BroadcastMode.Sync);
-
-    const checkIfVested = async (pair: RPTMGMTPair): Promise<boolean> => {
-        const status = await signingCosmWasmClient.queryContractSmart(pair.MGMT, {
-            progress: {
-                address: pair.RPT,
-                time: Math.floor(Date.now() / 1000)
-            }
-        });
-        return status.claimed === status.unlocked;
-    };
+    const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
+    const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
 
     const parseFeeError = (e: string, fee: Fee): Fee => {
         try {
@@ -160,7 +103,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     await new Promise((mainResolver) => {
         eachLimit(uniquePairs, 1, async (pair, CBRPT) => {
-            const vested = await checkIfVested(pair);
+            const vested = await checkIfVested(agent, pair);
             if (vested) {
                 HTTPResponse.push({ rpt_address: pair.RPT, success: false, error: "Nothing to claim right now" });
                 return CBRPT();
@@ -173,11 +116,12 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             while (call) {
                 try {
                     logs.push(`Calling with fees ${JSON.stringify(fee)}`);
-                    vest_result = await signingCosmWasmClient.execute(pair.RPT, { vest: {} }, undefined, undefined, fee);
+                    const rpt_vested = new RPT_Vested(agent, { address: pair.RPT, fee });
+                    vest_result = await rpt_vested.vest();
                     //wait 15s
                     await wait(5000);
                     //check if RPT was vested
-                    const status = await checkIfVested(pair);
+                    const status = await checkIfVested(agent, pair);
                     //don't call epoch if not vested
                     if (!status) {
                         vest_success = false;
@@ -197,7 +141,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                         //check if vest call was successfull even though we ended up in here...
                         //wait 15s
                         await wait(5000);
-                        const status = await checkIfVested(pair);
+                        const status = await checkIfVested(agent, pair);
                         if (status) {
                             call = false;
                             vest_success = true;
@@ -236,7 +180,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     fee = create_fee(next_epoch_fee_amount, next_epoch_fee_gas);
                     eachLimit(poolsV3, 1, async (p, cbPool) => {
                         const next_epoch_should_be = moment().diff(moment(p.created), "days");
-                        const pool_info = await signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } });
+                        const pool_info: any = await agent.query({ address: p.rewards_contract, codeHash: p.rewards_contract_hash }, { rewards: { pool_info: { at: new Date().getTime() } } });
                         let next_epoch_is = pool_info.rewards.pool_info.clock.number;
                         let retries = 1;
                         whilst(
@@ -244,7 +188,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                             (callback) => callback(null, !epoch_skip_call[p.rewards_contract] && next_epoch_should_be > next_epoch_is),
                             async (callback) => {
                                 try {
-                                    const result = await signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch: next_epoch_is + 1 } } }, undefined, undefined, fee);
+                                    const result = await agent.execute({ address: p.rewards_contract, codeHash: p.rewards_contract_hash }, { rewards: { begin_epoch: { next_epoch: next_epoch_is + 1 } } }, { fee });
                                     next_epoch_is++;
                                     logs.push(`Increased clock for: ${p.rewards_contract} to ${next_epoch_is}`);
                                     nextepoch_log.push({ contract: p.rewards_contract, result, clock: next_epoch_is + 1, fee });
@@ -257,7 +201,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                                         //wait 20s before retrying
                                         await wait(20000);
                                         //check if the call went through even though it threw an error
-                                        const pool_info = await signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } });
+                                        const pool_info: any = await agent.query({ address: p.rewards_contract, codeHash: p.rewards_contract_hash }, { rewards: { pool_info: { at: new Date().getTime() } } });
                                         if (pool_info.rewards.pool_info.clock.number === next_epoch_is + 1) {
                                             next_epoch_is++;
                                             nextepoch_log.push({ contract: p.rewards_contract, result: "Call failed but it went through", clock: next_epoch_is, fee });
@@ -307,6 +251,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 });
 
                 if (sendGridAPIKey && sendGridFrom && sendGridSubject && sendGridTo) {
+                    const sgMail = new MailService();
                     sgMail.setApiKey(sendGridAPIKey);
                     const msg = {
                         to: sendGridTo.split(";"),
@@ -342,12 +287,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         },
         body: HTTPResponse
     };
-
-
-
-
 };
-
 
 
 export default timerTrigger;

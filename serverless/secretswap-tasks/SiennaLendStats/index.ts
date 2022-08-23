@@ -1,31 +1,31 @@
-/* eslint-disable @typescript-eslint/camelcase */
-/* eslint-disable camelcase */
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
-import { CosmWasmClient, EnigmaUtils } from "secretjs";
 import { whilst, mapLimit } from "async";
 import Decimal from "decimal.js";
-import { OverseerContract, Market, MarketContract } from "siennajs/dist/lib/lend";
 import axios from "axios";
+import { Wallet, SecretNetworkClient } from "secretjslatest";
+import { ChainMode, ScrtGrpc, LendOverseer, Agent, LendOverseerMarket } from "siennajs";
+import { batchMultiCall } from "../lib/multicall";
 
-
-const secretNodeURL = process.env["secretNodeURL"];
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
 const OVERSEER_ADDRESS = process.env["OVERSEER_ADDRESS"];
+const OVERSEER_ADDRESS_CODE_HASH = process.env["OVERSEER_ADDRESS_CODE_HASH"];
 const BAND_REST_URL = process.env["BAND_REST_URL"];
 
-const seed = EnigmaUtils.GenerateNewSeed();
-const queryClient = new CosmWasmClient(secretNodeURL, seed);
+const gRPCUrl = process.env["gRPCUrl"];
+const mnemonic = process.env["mnemonic"];
+const chainId = process.env["CHAINID"];
 
-const LendMarkets = async (): Promise<Market[]> => {
+
+const LendMarkets = async (agent: Agent): Promise<LendOverseerMarket[]> => {
     return new Promise((resolve) => {
-        const overseerContract = new OverseerContract(OVERSEER_ADDRESS, null, queryClient);
+        const overseer = new LendOverseer(agent, { address: OVERSEER_ADDRESS, codeHash: OVERSEER_ADDRESS_CODE_HASH });
         let call = true, start = 0, contracts = [];
         whilst(
             (callback) => callback(null, call),
             async (callback) => {
-                const result = await overseerContract.query().markets({ start: start, limit: 10 });
+                const result = await overseer.getMarkets({ start, limit: 10 });
                 if (!result || !result.entries || !result.entries.length) {
                     call = false;
                     return callback();
@@ -43,19 +43,37 @@ const LendMarkets = async (): Promise<Market[]> => {
 const BandTokenPrice = async (symbol) => {
     const band_data = (await axios.get(`${BAND_REST_URL}/oracle/v1/request_prices`, { params: { symbols: symbol } })).data.price_results;
     const price = band_data.find((entry) => entry.symbol === symbol);
-    const formatted_price = new Decimal(price.px).div(price.multiplier).toDecimalPlaces(2).toNumber();
-    return formatted_price;
+    return new Decimal(price.px).div(price.multiplier).toDecimalPlaces(2).toNumber();
 };
 
 const LendData = async (tokens, rewards) => {
-    const markets = await LendMarkets();
+    const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
+    const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
+
+    const scrt_client = await SecretNetworkClient.create({ grpcWebUrl: gRPCUrl, chainId: chainId });
+
+    const markets = await LendMarkets(agent);
+    const block = await agent.height;
 
     return new Promise((resolve, reject) => {
         mapLimit(markets, 3, async (market, callback) => {
             try {
-                const marketContract = new MarketContract(market.contract.address, null, queryClient);
-                const underlying_asset = await marketContract.query().underlying_asset();
-                const exchange_rate = await marketContract.query().exchange_rate();
+                const calls = [
+                    { query: { underlying_asset: {} } },
+                    { query: { exchange_rate: { block } } },
+                    { query: { borrow_rate: { block } } },
+                    { query: { supply_rate: { block } } },
+                    { query: { state: { block } } }
+                ].map(c => ({
+                    contract_address: market.contract.address,
+                    code_hash: market.contract.code_hash,
+                    query: c.query
+                }));
+
+                const multi_result = await batchMultiCall(scrt_client, calls);
+
+                const underlying_asset = multi_result[0];
+                const exchange_rate = multi_result[1];
 
                 const token = tokens.find(t => t.dst_address === underlying_asset.address);
 
@@ -63,10 +81,10 @@ const LendData = async (tokens, rewards) => {
 
                 const token_price = band_token_price ? band_token_price : token.price;
 
-                const borrow_rate = new Decimal(await marketContract.query().borrow_rate()).toNumber();
+                const borrow_rate = new Decimal(multi_result[2]).toNumber();
                 const borrow_rate_usd = new Decimal(borrow_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
 
-                const supply_rate = new Decimal(await marketContract.query().supply_rate()).toNumber();
+                const supply_rate = new Decimal(multi_result[3]).toNumber();
                 const supply_rate_usd = new Decimal(supply_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
 
                 const supply_rate_day = new Decimal(86400).div(6).mul(supply_rate).toNumber();
@@ -75,7 +93,7 @@ const LendData = async (tokens, rewards) => {
                 const borrow_rate_day = new Decimal(86400).div(6).mul(borrow_rate).toNumber();
                 const borrow_APY = new Decimal(borrow_rate_day).add(1).pow(365).minus(1).toDecimalPlaces(2).toNumber();
 
-                const state = await marketContract.query().state();
+                const state = multi_result[4];
 
                 const reward = rewards.find(r => r.lp_token_address === market.contract.address);
                 let rewards_APR = 0;
@@ -86,6 +104,7 @@ const LendData = async (tokens, rewards) => {
 
                 callback(null, {
                     market: market.contract.address,
+                    market_code_hash: market.contract.code_hash,
                     token_price: token_price,
                     token_address: underlying_asset.address,
                     symbol: market.symbol,
@@ -120,6 +139,7 @@ const LendData = async (tokens, rewards) => {
                     }
                 });
             } catch (e) {
+                console.log(e);
                 callback(e);
             }
         }, (err, results) => {
@@ -133,6 +153,7 @@ const LendData = async (tokens, rewards) => {
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
     if (!OVERSEER_ADDRESS) return;
+
     const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
         (err: any) => {
             context.log(err);
