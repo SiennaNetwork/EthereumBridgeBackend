@@ -16,8 +16,6 @@ const gRPCUrl = process.env["gRPCUrl"];
 const mnemonic = process.env["mnemonic"];
 const chainId = process.env["CHAINID"];
 
-
-
 async function TokenInfo(agent: Agent, token: any) {
     const result: any = await agent.query({ address: token.address, codeHash: token.codeHash }, { token_info: {} });
     return result.token_info;
