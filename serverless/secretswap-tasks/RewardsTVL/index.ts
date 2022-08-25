@@ -51,7 +51,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     await Promise.all(pools.map((pool, index) => {
         let total_locked = "0";
-        let total_locked_usd = "NaN";
+        let total_locked_usd = "0";
         try {
             switch (pool.version) {
                 case "1":

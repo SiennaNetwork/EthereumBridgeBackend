@@ -134,6 +134,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         });
     };
 
+    if (await checkIfVested()) return;
+
     while (call) {
         try {
             logs.push(`Calling with fees ${JSON.stringify(fee)}`);
