@@ -2,6 +2,7 @@ import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import { SecretNetworkClient } from "secretjslatest";
 import { batchMultiCall } from "../lib/multicall";
+import { AMMPairInfo } from "siennajs";
 
 const mongodbName: string = process.env["mongodbName"];
 const mongodbUrl: string = process.env["mongodbUrl"];
@@ -54,8 +55,7 @@ const timerTrigger: AzureFunction = async function (
 
     await Promise.all(contracts.map(async (contract, index) => {
       try {
-        const pair_info = multi_result[index] && multi_result[index].pair_info;
-        if (!pair_info) return;
+        const pair_info = (multi_result[index] as { pair_info: AMMPairInfo }).pair_info;
         await Promise.all([client
           .db(mongodbName)
           .collection("secretswap_pools")

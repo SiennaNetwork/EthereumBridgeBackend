@@ -3,6 +3,7 @@ import { MongoClient } from "mongodb";
 import Decimal from "decimal.js";
 import { SecretNetworkClient } from "secretjslatest";
 import { batchMultiCall } from "../lib/multicall";
+import { Rewards_v2, Rewards_v2_Pool, Rewards_v3_Total } from "siennajs";
 
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
@@ -56,11 +57,11 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             switch (pool.version) {
                 case "1":
                 case "2":
-                    total_locked = multi_result[index].pool_info.pool_locked.toString();
+                    total_locked = (multi_result[index] as { pool_info: Rewards_v2_Pool }).pool_info.pool_locked.toString();
                     break;
                 case "3":
                 case "4.1":
-                    total_locked = multi_result[index].rewards.pool_info.staked.toString();
+                    total_locked = (multi_result[index] as { rewards: { pool_info: Rewards_v3_Total } }).rewards.pool_info.staked.toString();
                     break;
                 default:
                     throw Error(`Reward version ${pool.version} is not supported`);
