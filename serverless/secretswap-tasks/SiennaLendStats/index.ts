@@ -1,10 +1,10 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
-import { whilst, mapLimit } from "async";
+import { whilst, eachOfLimit } from "async";
 import Decimal from "decimal.js";
 import axios from "axios";
 import { Wallet, SecretNetworkClient } from "secretjslatest";
-import { ChainMode, ScrtGrpc, LendOverseer, Agent, LendOverseerMarket } from "siennajs";
+import { ChainMode, ScrtGrpc, LendOverseer, Agent, LendOverseerMarket, LendMarketState, Decimal256, ContractLink } from "siennajs";
 import { batchMultiCall } from "../lib/multicall";
 
 const mongodbUrl = process.env["mongodbUrl"];
@@ -47,6 +47,7 @@ const BandTokenPrice = async (symbol) => {
 };
 
 const LendData = async (tokens, rewards) => {
+    const results = [];
     const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
     const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
 
@@ -55,25 +56,28 @@ const LendData = async (tokens, rewards) => {
     const markets = await LendMarkets(agent);
     const block = await agent.height;
 
+    const calls = markets.map((market) => {
+        return [
+            { query: { underlying_asset: {} } },
+            { query: { exchange_rate: { block } } },
+            { query: { borrow_rate: { block } } },
+            { query: { supply_rate: { block } } },
+            { query: { state: { block } } }
+        ].map(c => ({
+            contract_address: market.contract.address,
+            code_hash: market.contract.code_hash,
+            query: c.query
+        }));
+    }).flat();
+
+    const multi_result = await batchMultiCall(scrt_client, calls);
+
     return new Promise((resolve, reject) => {
-        mapLimit(markets, 3, async (market, callback) => {
+        eachOfLimit(markets, 3, async (market, index: number, callback) => {
+            const multi_index = index * 5;
             try {
-                const calls = [
-                    { query: { underlying_asset: {} } },
-                    { query: { exchange_rate: { block } } },
-                    { query: { borrow_rate: { block } } },
-                    { query: { supply_rate: { block } } },
-                    { query: { state: { block } } }
-                ].map(c => ({
-                    contract_address: market.contract.address,
-                    code_hash: market.contract.code_hash,
-                    query: c.query
-                }));
-
-                const multi_result = await batchMultiCall(scrt_client, calls);
-
-                const underlying_asset = multi_result[0];
-                const exchange_rate = multi_result[1];
+                const underlying_asset = multi_result[multi_index] as ContractLink;
+                const exchange_rate = multi_result[multi_index + 1] as Decimal256;
 
                 const token = tokens.find(t => t.dst_address === underlying_asset.address);
 
@@ -81,10 +85,10 @@ const LendData = async (tokens, rewards) => {
 
                 const token_price = band_token_price ? band_token_price : token.price;
 
-                const borrow_rate = new Decimal(multi_result[2]).toNumber();
+                const borrow_rate = new Decimal(multi_result[multi_index + 2] as Decimal256).toNumber();
                 const borrow_rate_usd = new Decimal(borrow_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
 
-                const supply_rate = new Decimal(multi_result[3]).toNumber();
+                const supply_rate = new Decimal(multi_result[multi_index + 3] as Decimal256).toNumber();
                 const supply_rate_usd = new Decimal(supply_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
 
                 const supply_rate_day = new Decimal(86400).div(6).mul(supply_rate).toNumber();
@@ -93,7 +97,7 @@ const LendData = async (tokens, rewards) => {
                 const borrow_rate_day = new Decimal(86400).div(6).mul(borrow_rate).toNumber();
                 const borrow_APY = new Decimal(borrow_rate_day).add(1).pow(365).minus(1).toDecimalPlaces(2).toNumber();
 
-                const state = multi_result[4];
+                const state = multi_result[multi_index + 4] as LendMarketState;
 
                 const reward = rewards.find(r => r.lp_token_address === market.contract.address);
                 let rewards_APR = 0;
@@ -101,8 +105,7 @@ const LendData = async (tokens, rewards) => {
                     const total_locked_usd = new Decimal(reward.total_locked).div(new Decimal(10).pow(reward.inc_token.decimals)).mul(exchange_rate).times(token_price).toNumber();
                     if (total_locked_usd) rewards_APR = new Decimal(reward.rewards_token.rewards_per_day).mul(token_price).times(365).div(total_locked_usd).times(100).toDecimalPlaces(2).toNumber();
                 }
-
-                callback(null, {
+                results.push({
                     market: market.contract.address,
                     market_code_hash: market.contract.code_hash,
                     token_price: token_price,
@@ -138,17 +141,17 @@ const LendData = async (tokens, rewards) => {
                         }
                     }
                 });
+                callback();
             } catch (e) {
                 console.log(e);
                 callback(e);
             }
-        }, (err, results) => {
+        }, (err) => {
             if (err) return reject(err);
             resolve(results);
         });
     });
 };
-
 
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {

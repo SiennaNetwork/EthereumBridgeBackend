@@ -6,8 +6,9 @@ import { whilst } from "async";
 import moment from "moment";
 import { findWhere } from "underscore";
 import Decimal from "decimal.js";
-import { Wallet } from "secretjslatest";
-import { ChainMode, ScrtGrpc, LendOverseer, Agent, LendMarket, LendOverseerMarket, Snip20 } from "siennajs";
+import { SecretNetworkClient, Wallet } from "secretjslatest";
+import { ChainMode, ScrtGrpc, LendOverseer, Agent, LendOverseerMarket, Snip20, LendMarketState, Decimal256, ContractLink } from "siennajs";
+import { batchMultiCall } from "../lib/multicall";
 
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
@@ -43,17 +44,32 @@ const LendMarkets = async (agent: Agent): Promise<LendOverseerMarket[]> => {
     });
 };
 
-async function LendTVL(agent: Agent, tokens) {
+async function LendTVL(scrt_client: SecretNetworkClient, agent: Agent, tokens) {
     const markets = await LendMarkets(agent);
     const block = await agent.height;
-    return (await Promise.all(markets.map(async (market) => {
-        const marketContract = new LendMarket(agent, { address: market.contract.address, codeHash: market.contract.code_hash });
-        const marketState = await marketContract.getState(block);
-        const exchange_rate = await marketContract.getExchangeRate(block);
-        const underlying_asset = await marketContract.getUnderlyingAsset();
+
+    const calls = markets.map((market) => {
+        return [
+            { query: { state: { block } } },
+            { query: { exchange_rate: { block } } },
+            { query: { underlying_asset: {} } }
+        ].map(c => ({
+            contract_address: market.contract.address,
+            code_hash: market.contract.code_hash,
+            query: c.query
+        }));
+
+    }).flat();
+
+    const multi_result = await batchMultiCall(scrt_client, calls);
+    return markets.map((market, index) => {
+        const i = index * 3; // market index * number of calls per market
+        const marketState = multi_result[i] as LendMarketState;
+        const exchange_rate = multi_result[i + 1] as Decimal256;
+        const underlying_asset = multi_result[i + 2] as ContractLink;
         const lend_token = tokens.find(t => t.dst_address === underlying_asset.address);
         return new Decimal(marketState.total_supply).mul(exchange_rate).div(new Decimal(10).pow(lend_token.decimals)).mul(lend_token.price).toNumber();
-    }))).reduce((prev, value) => new Decimal(prev).add(value).toNumber(), 0);
+    }).reduce((prev, value) => new Decimal(prev).add(value).toNumber(), 0);
 }
 
 async function PairsLiquidity(pools, tokens) {
@@ -74,12 +90,11 @@ async function PairsLiquidity(pools, tokens) {
     }, 0);
 }
 
-
-
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
     const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
     const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
+    const scrt_client = await SecretNetworkClient.create({ grpcWebUrl: gRPCUrl, chainId: chainId });
 
     const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
         (err: any) => {
@@ -132,15 +147,11 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         return new Decimal(prev).add(poolUSD).toNumber();
     }, 0);
 
-
-
-    const lend_supplied = await LendTVL(agent, tokens);
+    const lend_supplied = await LendTVL(scrt_client, agent, tokens);
 
     const pool_liquidity = await PairsLiquidity(pools, tokens);
 
     const total_value_locked = new Decimal(staked).add(lend_supplied).add(pool_liquidity).toNumber();
-
-
 
     await db.collection("sienna_token_statistics").updateOne({ name: token.name, symbol: token.display_props.symbol },
         {
