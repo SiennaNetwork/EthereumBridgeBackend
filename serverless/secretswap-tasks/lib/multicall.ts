@@ -14,13 +14,13 @@ type MultiCallResponse = object | { error: string }
 
 function chunkify(arr, size) { return arr.reduce((acc, e, i) => (i % size ? acc[acc.length - 1].push(e) : acc.push([e]), acc), []); }
 
-async function multiCall(client: SecretNetworkClient, contracts: MultiCallContract[], query: MultiCallContract["query"]): Promise<MultiCallResponse> {
+async function multiCall(client: SecretNetworkClient, contracts: MultiCallContract[], query?: MultiCallContract["query"]): Promise<MultiCallResponse> {
     const queries = contracts.map((c) => ({
         contract_address: c.contract_address,
         code_hash: c.code_hash,
         query: Buffer.from(JSON.stringify(c.query || query)).toString(
             "base64",
-        ),
+        )
     }));
     return (
         await client.query.compute.queryContract({
