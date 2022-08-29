@@ -13,7 +13,12 @@ export interface PollDocument extends mongoose.Document {
     };
     status: string;
     current_quorum: number;
-
+    result: {
+        poll_id: number;
+        yes_votes: string;
+        no_votes: string;
+        abstain_votes: string;
+    }
 }
 
 export const pollSchema = new mongoose.Schema({
@@ -28,7 +33,13 @@ export const pollSchema = new mongoose.Schema({
         at_time: Number
     },
     status: String,
-    current_quorum: Number
+    current_quorum: Number,
+    result: {
+        poll_id: Number,
+        yes_votes: String,
+        no_votes: String,
+        abstain_votes: String
+    }
 
 }, { collection: "polls" });
 
