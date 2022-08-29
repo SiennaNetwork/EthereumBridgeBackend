@@ -44,7 +44,7 @@ async function get_polls(agent: Agent, scrt_client: SecretNetworkClient): Promis
                     })));
                     resolve(polls.map((poll, index) => (
                         {
-                            ...poll,
+                            ...Object.assign(poll, multi_result[index].instance),
                             result: multi_result[index].result
                         }
                     )));
