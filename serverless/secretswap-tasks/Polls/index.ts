@@ -1,8 +1,9 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import { whilst } from "async";
-import { Wallet } from "secretjslatest";
+import { SecretNetworkClient, Wallet } from "secretjslatest";
 import { ChainMode, ScrtGrpc, Agent, Poll, Polls } from "siennajs";
+import { batchMultiCall } from "../lib/multicall";
 
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
@@ -14,7 +15,7 @@ const gRPCUrl = process.env["gRPCUrl"];
 const mnemonic = process.env["mnemonic"];
 const chainId = process.env["CHAINID"];
 
-async function get_polls(agent: Agent): Promise<Poll[]> {
+async function get_polls(agent: Agent, scrt_client: SecretNetworkClient): Promise<Poll[]> {
     return new Promise(async (resolve) => {
         const polls_class = new Polls(agent, { address: GOVERNANCE_ADDRESS, codeHash: GOVERNANCE_CODE_HASH });
         let polls: Poll[] = [];
@@ -30,11 +31,26 @@ async function get_polls(agent: Agent): Promise<Poll[]> {
                     polls = polls.concat(page_result.polls);
                     page++;
                     callback();
-                }, () => {
-                    resolve(polls);
+                }, async () => {
+                    const multi_result = await batchMultiCall(scrt_client, polls.map(poll => ({
+                        contract_address: GOVERNANCE_ADDRESS,
+                        code_hash: GOVERNANCE_CODE_HASH,
+                        query: {
+                            poll: {
+                                poll_id: poll.id,
+                                now: Math.floor(Date.now() / 1000)
+                            }
+                        }
+                    })));
+                    resolve(polls.map((poll, index) => (
+                        {
+                            ...poll,
+                            result: multi_result[index].result
+                        }
+                    )));
                 }
             );
-        } catch (e) {
+        } catch {
             resolve([]);
         }
     });
@@ -50,8 +66,9 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
     const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
+    const scrt_client = await SecretNetworkClient.create({ grpcWebUrl: gRPCUrl, chainId: chainId });
 
-    const polls = await get_polls(agent);
+    const polls = await get_polls(agent, scrt_client);
     await Promise.all(polls.map((poll) => client
         .db(mongodbName)
         .collection("polls")
