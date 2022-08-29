@@ -20,18 +20,18 @@ async function get_polls(agent: Agent, scrt_client: SecretNetworkClient): Promis
         const polls_class = new Polls(agent, { address: GOVERNANCE_ADDRESS, codeHash: GOVERNANCE_CODE_HASH });
         let polls: Poll[] = [];
         try {
-            const result = await polls_class.getPolls(1, 1, 100, 1);
-            polls = polls.concat(result.polls);
-            const nr_of_polls = result.total;
-            let page = 2;
+            const results_per_page = 2;
+            let page = 1, pages = -1;
             whilst(
-                (callback) => callback(null, page <= nr_of_polls),
+                (callback) => callback(null, page <= pages || pages === -1),
                 async (callback) => {
-                    const page_result = await polls_class.getPolls(Math.round(Date.now() / 1000), page, 100, 1);
-                    polls = polls.concat(page_result.polls);
+                    const result = await polls_class.getPolls(Math.round(Date.now() / 1000), page, 100, 1);
+                    pages = Math.ceil(result.total / results_per_page);
+                    polls = polls.concat(result.polls);
                     page++;
                     callback();
                 }, async () => {
+                    polls = polls.filter(p => p.status === "active");
                     const multi_result = await batchMultiCall(scrt_client, polls.map(poll => ({
                         contract_address: GOVERNANCE_ADDRESS,
                         code_hash: GOVERNANCE_CODE_HASH,
@@ -44,7 +44,7 @@ async function get_polls(agent: Agent, scrt_client: SecretNetworkClient): Promis
                     })));
                     resolve(polls.map((poll, index) => (
                         {
-                            ...poll,
+                            ...Object.assign(poll, multi_result[index].instance),
                             result: multi_result[index].result
                         }
                     )));
