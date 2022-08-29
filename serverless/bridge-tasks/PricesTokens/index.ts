@@ -16,6 +16,8 @@ const gRPCUrl = process.env["gRPCUrl"];
 const mnemonic = process.env["mnemonic"];
 const chainId = process.env["CHAINID"];
 
+const siennaSwapSymbols = process.env["siennaswapSymbols"] && process.env["siennaswapSymbols"].split(",") || [];
+
 async function TokenInfo(agent: Agent, token: any) {
     const result: any = await agent.query({ address: token.address, codeHash: token.codeHash }, { token_info: {} });
     return result.token_info;
@@ -74,7 +76,7 @@ async function PriceFromPool(agent: Agent, _id, db) {
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
-    const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: ChainMode.Devnet });
+    const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
     const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
 
     const client: MongoClient = await MongoClient.connect(mongodbUrl,
@@ -103,8 +105,9 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         };
     }));
 
-    const coingecko_tokens = tokens_mapped.filter(t => t.coingecko_id); //price can be grabbed from coingecko
-    const non_coingecko_tokens = tokens_mapped.filter(t => !t.coingecko_id); //price can NOT be grabbed from coingecko
+    const coingecko_tokens = tokens_mapped.filter(t => t.coingecko_id).filter(t => !siennaSwapSymbols.includes(t.symbol)); //price can be grabbed from coingecko
+    const non_coingecko_tokens = tokens_mapped.filter(t => !t.coingecko_id || siennaSwapSymbols.includes(t.symbol)); //price can NOT be grabbed from coingecko
+
 
     const oracle_prices = await CoinGeckoBulk(coingecko_tokens.map(t => t.coingecko_id));
 
