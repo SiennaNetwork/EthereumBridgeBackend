@@ -5,7 +5,7 @@ import { Rewards_v2_Pool, Rewards_v3_Total } from "siennajs";
 import { get_scrt_client } from "../lib/client";
 import { DB } from "../lib/db";
 
-const supported_rewards_versions = ["1", "2", "3", "4.1"];
+const supported_rewards_versions = ["1", "2", "3", "3.1", "4.1"];
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
     const mongo_client = new DB();
@@ -28,11 +28,10 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 query = { pool_info: { at: new Date().getTime() } };
                 break;
             case "3":
+            case "3.1":
             case "4.1":
                 query = { rewards: { pool_info: { at: new Date().getTime() } } };
                 break;
-            default:
-                query = null;
         }
         return {
             contract_address: pool.rewards_contract,
@@ -51,11 +50,10 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     total_locked = (multi_result[index] as { pool_info: Rewards_v2_Pool }).pool_info.pool_locked.toString();
                     break;
                 case "3":
+                case "3.1":
                 case "4.1":
                     total_locked = (multi_result[index] as { rewards: { pool_info: Rewards_v3_Total } }).rewards.pool_info.staked.toString();
                     break;
-                default:
-                    throw Error(`Reward version ${pool.version} is not supported`);
             }
 
             if (total_locked !== "0" && pool.inc_token.price != "NaN") {
