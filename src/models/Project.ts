@@ -72,6 +72,7 @@ export interface ProjectDocument extends mongoose.Document {
     failed: boolean; // project creation failed
     tx: string; // project creation transaction id
     adminAddress: string; //address that receives the proceeds
+    vesting_description: string;
 }
 
 export const projectSchema = new mongoose.Schema({
@@ -135,7 +136,8 @@ export const projectSchema = new mongoose.Schema({
     creationDate: Date,
     tx: String,
     failed: Boolean,
-    adminAddress: String
+    adminAddress: String,
+    vesting_description: String
 }, { collection: "projects" });
 
 
