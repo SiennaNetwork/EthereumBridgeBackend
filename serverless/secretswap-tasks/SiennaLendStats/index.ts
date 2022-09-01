@@ -1,21 +1,16 @@
 import { AzureFunction, Context } from "@azure/functions";
-import { MongoClient } from "mongodb";
 import { whilst, eachOfLimit } from "async";
 import Decimal from "decimal.js";
 import axios from "axios";
-import { Wallet, SecretNetworkClient } from "secretjslatest";
-import { ChainMode, ScrtGrpc, LendOverseer, Agent, LendOverseerMarket, LendMarketState, Decimal256, ContractLink } from "siennajs";
+import { LendOverseer, Agent, LendOverseerMarket, LendMarketState, Decimal256, ContractLink } from "siennajs";
 import { batchMultiCall } from "../lib/multicall";
+import { DB } from "../lib/db";
+import { get_agent, get_scrt_client } from "../lib/client";
 
-const mongodbUrl = process.env["mongodbUrl"];
-const mongodbName = process.env["mongodbName"];
 const OVERSEER_ADDRESS = process.env["OVERSEER_ADDRESS"];
 const OVERSEER_ADDRESS_CODE_HASH = process.env["OVERSEER_ADDRESS_CODE_HASH"];
 const BAND_REST_URL = process.env["BAND_REST_URL"];
 
-const gRPCUrl = process.env["gRPCUrl"];
-const mnemonic = process.env["mnemonic"];
-const chainId = process.env["CHAINID"];
 
 
 const LendMarkets = async (agent: Agent): Promise<LendOverseerMarket[]> => {
@@ -48,10 +43,9 @@ const BandTokenPrice = async (symbol) => {
 
 const LendData = async (tokens, rewards) => {
     const results = [];
-    const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
-    const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
+    const agent = await get_agent();
 
-    const scrt_client = await SecretNetworkClient.create({ grpcWebUrl: gRPCUrl, chainId: chainId });
+    const scrt_client = await get_scrt_client();
 
     const markets = await LendMarkets(agent);
     const block = await agent.height;
@@ -157,13 +151,8 @@ const LendData = async (tokens, rewards) => {
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
     if (!OVERSEER_ADDRESS) return;
 
-    const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
-        (err: any) => {
-            context.log(err);
-            throw new Error("Failed to connect to database");
-        }
-    );
-    const db = await client.db(`${mongodbName}`);
+    const mongo_client = new DB();
+    const db = await mongo_client.connect();
 
     const tokens = await db.collection("token_pairing").find().toArray().catch(
         (err: any) => {
@@ -189,6 +178,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     } catch (e) {
         context.log(`Error updating Lend Data, ${e.toString()}`);
     }
+
+    await mongo_client.disconnect();
 
 };
 

@@ -1,26 +1,14 @@
 import { AzureFunction, Context } from "@azure/functions";
-import { MongoClient } from "mongodb";
-import { Wallet } from "secretjslatest";
-import { ChainMode, ScrtGrpc, Agent } from "siennajs";
+import { Agent } from "siennajs";
+import { get_agent } from "../lib/client";
+import { DB } from "../lib/db";
 
-const mongodbUrl = process.env["mongodbUrl"];
-const mongodbName = process.env["mongodbName"];
-
-const gRPCUrl = process.env["gRPCUrl"];
-const mnemonic = process.env["mnemonic"];
-const chainId = process.env["CHAINID"];
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
-    const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
-        (err: any) => {
-            context.log(err);
-            throw new Error("Failed to connect to database");
-        }
-    );
-    const db = await client.db(`${mongodbName}`);
+    const mongo_client = new DB();
+    const db = await mongo_client.connect();
 
-    const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
-    const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
+    const agent = await get_agent();
 
     //rewards
     const rewards: any[] = await db.collection("rewards_data").find({
@@ -138,6 +126,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             }
         });
     }));
+
+    await mongo_client.disconnect();
 
 };
 

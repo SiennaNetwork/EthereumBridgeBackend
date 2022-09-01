@@ -1,16 +1,9 @@
 import { AzureFunction, Context } from "@azure/functions";
-import { MongoClient } from "mongodb";
 import Decimal from "decimal.js";
 import { eachLimit } from "async";
-import { Wallet } from "secretjslatest";
-import { Agent, ChainMode, ScrtGrpc, Snip20 } from "siennajs";
-
-const mongodbName: string = process.env["mongodbName"];
-const mongodbUrl: string = process.env["mongodbUrl"];
-
-const gRPCUrl = process.env["gRPCUrl"];
-const mnemonic = process.env["mnemonic"];
-const chainId = process.env["CHAINID"];
+import { Agent, Snip20 } from "siennajs";
+import { get_agent } from "../lib/client";
+import { DB } from "../lib/db";
 
 
 function getPair(pairs: any[], token1_addr: string, token2_addr: string) {
@@ -111,17 +104,10 @@ const getPrice = async (agent: Agent, poolToken, tokens, secret_tokens, pairs, p
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
-    const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
-    const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
+    const mongo_client = new DB();
+    const db = await mongo_client.connect();
 
-    const client: MongoClient = await MongoClient.connect(mongodbUrl,
-        { useUnifiedTopology: true, useNewUrlParser: true }).catch(
-            (err: any) => {
-                context.log(err);
-                throw new Error("Failed to connect to database");
-            }
-        );
-    const db = await client.db(mongodbName);
+    const agent = await get_agent();
 
 
     const tokens = await db.collection("token_pairing").find({}).limit(1000).toArray().catch(
@@ -195,7 +181,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     });
 
 
-    await client.close();
+    await mongo_client.disconnect();
 
 
 };

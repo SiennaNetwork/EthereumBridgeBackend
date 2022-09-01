@@ -1,33 +1,24 @@
 import { AzureFunction, Context } from "@azure/functions";
-import { MongoClient } from "mongodb";
 import Decimal from "decimal.js";
-import { SecretNetworkClient } from "secretjslatest";
 import { batchMultiCall } from "../lib/multicall";
-import { Rewards_v2, Rewards_v2_Pool, Rewards_v3_Total } from "siennajs";
-
-const mongodbUrl = process.env["mongodbUrl"];
-const mongodbName = process.env["mongodbName"];
-
-const gRPCUrl = process.env["gRPCUrl"];
-const chainId = process.env["CHAINID"];
+import { Rewards_v2_Pool, Rewards_v3_Total } from "siennajs";
+import { get_scrt_client } from "../lib/client";
+import { DB } from "../lib/db";
 
 const supported_rewards_versions = ["1", "2", "3", "4.1"];
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
-    const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
-        (err: any) => {
-            context.log(err);
-            throw new Error("Failed to connect to database");
-        }
-    );
-    const db = await client.db(`${mongodbName}`);
+    const mongo_client = new DB();
+    const db = await mongo_client.connect();
+
+    const scrt_client = await get_scrt_client();
+
     const pools: any[] = await db.collection("rewards_data").find({ version: { $in: supported_rewards_versions } }).limit(1000).toArray().catch(
         (err: any) => {
             context.log(err);
             throw new Error("Failed to get rewards from collection");
         });
 
-    const scrt_client = await SecretNetworkClient.create({ grpcWebUrl: gRPCUrl, chainId: chainId });
 
     const multi_result = await batchMultiCall(scrt_client, pools.map(pool => {
         let query;
@@ -84,10 +75,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         });
     }));
 
-
-    await client.close();
-
-    context.log("Updated Rewards");
+    await mongo_client.disconnect();
 };
 
 

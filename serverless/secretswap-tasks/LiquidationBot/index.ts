@@ -1,10 +1,9 @@
 
 import { AzureFunction, Context } from "@azure/functions";
-import { MongoClient } from "mongodb";
 import { Liquidator, Config, MarketConfig } from "sienna-liquidator/src/liquidator";
+import { DB } from "../lib/db";
 
-const mongodbUrl = process.env["mongodbUrl"];
-const mongodbName = process.env["mongodbName"];
+
 const secretNodeURL = process.env["secretNodeURL"];
 const OVERSEER_ADDRESS = process.env["OVERSEER_ADDRESS"];
 const BAND_REST_URL = process.env["BAND_REST_URL"];
@@ -15,13 +14,8 @@ const lendVK = JSON.parse(process.env["LEND_VK"] || "{}");
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
-    const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
-        (err: any) => {
-            context.log(err);
-            throw new Error("Failed to connect to database");
-        }
-    );
-    const db = await client.db(`${mongodbName}`);
+    const mongo_client = new DB();
+    const db = await mongo_client.connect();
 
     const lendCollection = db.collection("sienna_lend_historical_data");
 
@@ -40,7 +34,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         mnemonic: mnemonic,
         interval: 10000,
         overseer: OVERSEER_ADDRESS
-    }
+    };
     const logs = [];
     console.log = function () {
         logs.push(arguments[0]);
@@ -57,7 +51,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         logs
     });
 
-    context.log("DONE");
+    await mongo_client.disconnect();
 };
 
 

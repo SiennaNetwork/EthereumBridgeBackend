@@ -1,26 +1,21 @@
 
 import { AzureFunction, Context } from "@azure/functions";
-import { MongoClient } from "mongodb";
 import { schedule } from "./circulating_supply";
 import { whilst } from "async";
 import moment from "moment";
 import { findWhere } from "underscore";
 import Decimal from "decimal.js";
-import { SecretNetworkClient, Wallet } from "secretjslatest";
-import { ChainMode, ScrtGrpc, LendOverseer, Agent, LendOverseerMarket, Snip20, LendMarketState, Decimal256, ContractLink } from "siennajs";
+import { SecretNetworkClient } from "secretjslatest";
+import { LendOverseer, Agent, LendOverseerMarket, Snip20, LendMarketState, Decimal256, ContractLink } from "siennajs";
 import { batchMultiCall } from "../lib/multicall";
+import { DB } from "../lib/db";
+import { get_agent, get_scrt_client } from "../lib/client";
 
-const mongodbUrl = process.env["mongodbUrl"];
-const mongodbName = process.env["mongodbName"];
 
 const tokensLockedByTeam = process.env["tokens_locked_by_team"] && !isNaN(parseFloat(process.env["tokens_locked_by_team"])) ? new Decimal(process.env["tokens_locked_by_team"]).toNumber() : 0;
 
 const OVERSEER_ADDRESS = process.env["OVERSEER_ADDRESS"];
 const OVERSEER_ADDRESS_CODE_HASH = process.env["OVERSEER_ADDRESS_CODE_HASH"];
-
-const gRPCUrl = process.env["gRPCUrl"];
-const mnemonic = process.env["mnemonic"];
-const chainId = process.env["CHAINID"];
 
 const LendMarkets = async (agent: Agent): Promise<LendOverseerMarket[]> => {
     return new Promise((resolve) => {
@@ -92,17 +87,12 @@ async function PairsLiquidity(pools, tokens) {
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
-    const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
-    const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
-    const scrt_client = await SecretNetworkClient.create({ grpcWebUrl: gRPCUrl, chainId: chainId });
+    const mongo_client = new DB();
+    const db = await mongo_client.connect();
 
-    const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
-        (err: any) => {
-            context.log(err);
-            throw new Error("Failed to connect to database");
-        }
-    );
-    const db = client.db(`${mongodbName}`);
+    const scrt_client = await get_scrt_client();
+    const agent = await get_agent();
+
     const token: any = await db.collection("token_pairing").findOne({ name: "SIENNA", "display_props.symbol": "SIENNA" }).catch(
         (err: any) => {
             context.log(err);
@@ -195,6 +185,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         lend_supplied,
         pool_liquidity
     });
+
+    await mongo_client.disconnect();
 
 };
 
