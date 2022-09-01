@@ -1,33 +1,24 @@
 import { AzureFunction, Context } from "@azure/functions";
-import { MongoClient } from "mongodb";
 import Decimal from "decimal.js";
-import { SecretNetworkClient } from "secretjslatest";
 import { batchMultiCall } from "../lib/multicall";
-import { Rewards_v2, Rewards_v2_Pool, Rewards_v3_Total } from "siennajs";
+import { Rewards_v2_Pool, Rewards_v3_Total } from "siennajs";
+import { get_scrt_client } from "../lib/client";
+import { DB } from "../lib/db";
 
-const mongodbUrl = process.env["mongodbUrl"];
-const mongodbName = process.env["mongodbName"];
-
-const gRPCUrl = process.env["gRPCUrl"];
-const chainId = process.env["CHAINID"];
-
-const supported_rewards_versions = ["1", "2", "3", "4.1"];
+const supported_rewards_versions = ["1", "2", "3", "3.1", "4.1"];
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
-    const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
-        (err: any) => {
-            context.log(err);
-            throw new Error("Failed to connect to database");
-        }
-    );
-    const db = await client.db(`${mongodbName}`);
+    const mongo_client = new DB();
+    const db = await mongo_client.connect();
+
+    const scrt_client = await get_scrt_client();
+
     const pools: any[] = await db.collection("rewards_data").find({ version: { $in: supported_rewards_versions } }).limit(1000).toArray().catch(
         (err: any) => {
             context.log(err);
             throw new Error("Failed to get rewards from collection");
         });
 
-    const scrt_client = await SecretNetworkClient.create({ grpcWebUrl: gRPCUrl, chainId: chainId });
 
     const multi_result = await batchMultiCall(scrt_client, pools.map(pool => {
         let query;
@@ -37,11 +28,10 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 query = { pool_info: { at: new Date().getTime() } };
                 break;
             case "3":
+            case "3.1":
             case "4.1":
                 query = { rewards: { pool_info: { at: new Date().getTime() } } };
                 break;
-            default:
-                query = null;
         }
         return {
             contract_address: pool.rewards_contract,
@@ -60,11 +50,10 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     total_locked = (multi_result[index] as { pool_info: Rewards_v2_Pool }).pool_info.pool_locked.toString();
                     break;
                 case "3":
+                case "3.1":
                 case "4.1":
                     total_locked = (multi_result[index] as { rewards: { pool_info: Rewards_v3_Total } }).rewards.pool_info.staked.toString();
                     break;
-                default:
-                    throw Error(`Reward version ${pool.version} is not supported`);
             }
 
             if (total_locked !== "0" && pool.inc_token.price != "NaN") {
@@ -84,10 +73,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         });
     }));
 
-
-    await client.close();
-
-    context.log("Updated Rewards");
+    await mongo_client.disconnect();
 };
 
 

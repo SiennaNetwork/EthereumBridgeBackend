@@ -1,27 +1,17 @@
 import { AzureFunction, Context } from "@azure/functions";
-import { MongoClient } from "mongodb";
 import Decimal from "decimal.js";
 import axios from "axios";
 import { symbolsMap } from "./utils";
 import { eachLimit } from "async";
 import sanitize from "mongo-sanitize";
-import { Wallet } from "secretjslatest";
-import { Agent, ChainMode, ScrtGrpc, AMMExchange, TokenAmount } from "siennajs";
+import { Agent, AMMExchange, TokenAmount } from "siennajs";
+import { DB } from "../lib/db";
+import { get_agent, get_scrt_client } from "../lib/client";
+import { batchMultiCall } from "../lib/multicall";
 
 const coinGeckoUrl = "https://api.coingecko.com/api/v3/simple/price?";
-const mongodbName: string = process.env["mongodbName"];
-const mongodbUrl: string = process.env["mongodbUrl"];
-
-const gRPCUrl = process.env["gRPCUrl"];
-const mnemonic = process.env["mnemonic"];
-const chainId = process.env["CHAINID"];
 
 const siennaSwapSymbols = process.env["siennaswapSymbols"] && process.env["siennaswapSymbols"].split(",") || [];
-
-async function TokenInfo(agent: Agent, token: any) {
-    const result: any = await agent.query({ address: token.address, codeHash: token.codeHash }, { token_info: {} });
-    return result.token_info;
-}
 
 async function CoinGeckoBulk(symbols: string[]) {
     return (await axios({
@@ -76,45 +66,46 @@ async function PriceFromPool(agent: Agent, _id, db) {
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
-    const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
-    const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
+    const mongo_client = new DB();
+    const db = await mongo_client.connect();
 
-    const client: MongoClient = await MongoClient.connect(mongodbUrl,
-        { useUnifiedTopology: true, useNewUrlParser: true }).catch(
-            async (err: any) => {
-                context.log(err);
-                await client.close();
-                throw new Error("Failed to connect to database");
-            }
-        );
-    const db = client.db(mongodbName);
+    const agent = await get_agent();
+    const scrt_client = await get_scrt_client();
 
     const tokens = await db.collection("token_pairing").find({}).limit(1000).toArray().catch(
         async (err: any) => {
             context.log(err);
-            await client.close();
+            await mongo_client.disconnect();
             throw new Error("Failed to get tokens from collection");
         }
     );
-    const tokens_mapped: any[] = await Promise.all(tokens.map(async token => {
-        const token_info = await TokenInfo(agent, { address: token.dst_address, codeHash: token.dst_address_code_hash });
+
+
+    const multi_result = await batchMultiCall(scrt_client, tokens.map(t => {
+        return {
+            contract_address: t.dst_address,
+            code_hash: t.dst_address_code_hash
+        };
+    }), { token_info: {} });
+
+    const tokens_mapped = tokens.map((token, i) => {
+        const token_info = multi_result[i].token_info;
         return {
             _id: token._id,
             coingecko_id: symbolsMap[token_info.symbol] ? symbolsMap[token_info.symbol] : null,
             symbol: token_info.symbol
         };
-    }));
+    });
+
 
     const coingecko_tokens = tokens_mapped.filter(t => t.coingecko_id).filter(t => !siennaSwapSymbols.includes(t.symbol)); //price can be grabbed from coingecko
     const non_coingecko_tokens = tokens_mapped.filter(t => !t.coingecko_id || siennaSwapSymbols.includes(t.symbol)); //price can NOT be grabbed from coingecko
-
 
     const oracle_prices = await CoinGeckoBulk(coingecko_tokens.map(t => t.coingecko_id));
 
     await Promise.all(coingecko_tokens.map(token => {
         if (oracle_prices[token.coingecko_id] && oracle_prices[token.coingecko_id].usd) {
-            return client
-                .db(mongodbName)
+            return db
                 .collection("token_pairing")
                 .updateOne({ _id: token._id }, {
                     $set: {
@@ -127,9 +118,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     await new Promise((resolve) => {
         eachLimit(non_coingecko_tokens, 2, async (token, cb) => {
             const price = await PriceFromPool(agent, token._id, db);
-            await client
-                .db(mongodbName)
-                .collection("token_pairing")
+            await db.collection("token_pairing")
                 .updateOne({ _id: token._id }, {
                     $set: {
                         price
@@ -141,7 +130,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         });
     });
 
-    await client.close();
+    await mongo_client.disconnect();
 };
 
 

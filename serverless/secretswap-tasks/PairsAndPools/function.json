@@ -7,5 +7,5 @@
       "schedule": "0 */5 * * * *"
     }
   ],
-  "scriptFile": "../dist/UpdateSecretSwapPairsAndPools/index.js"
+  "scriptFile": "../dist/PairsAndPools/index.js"
 }

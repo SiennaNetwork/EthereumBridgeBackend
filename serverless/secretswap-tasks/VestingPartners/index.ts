@@ -6,6 +6,7 @@ import { eachLimit, whilst } from "async";
 import { uniq } from "underscore";
 import { MailService } from "@sendgrid/mail";
 import { create_fee, Fee, PatchedSigningCosmWasmClient } from "siennajs";
+import { DB } from "../lib/db";
 
 const SIENNARPTContractAddress = process.env["RPTContractAddress"];
 const SIENNAMGMTContractAddress = process.env["MGMTContractAddress"];
@@ -55,12 +56,11 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         });
     };
 
-    const client: MongoClient = await MongoClient.connect(mongodbUrl, { useUnifiedTopology: true, useNewUrlParser: true }).catch((err: any) => {
-        context.log(err);
-        throw new Error("Failed to connect to database");
-    });
-    const rewardsCollection = client.db(mongodbName).collection("rewards_data");
-    const logCollection = client.db(mongodbName).collection("vesting_log_partners");
+    const mongo_client = new DB();
+    const db = await mongo_client.connect();
+
+    const rewardsCollection = db.collection("rewards_data");
+    const logCollection = db.collection("vesting_log_partners");
 
     const pools = await rewardsCollection.find({
         rpt_address: {
@@ -253,6 +253,9 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         });
     });
     context.log("Finished calling vest");
+
+    await mongo_client.disconnect();
+
     context.res = {
         status: 200, /* Defaults to 200 */
         headers: {

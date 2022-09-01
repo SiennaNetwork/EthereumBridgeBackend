@@ -2,6 +2,7 @@ import { AzureFunction, Context } from "@azure/functions";
 import { MongoClient } from "mongodb";
 import axios from "axios";
 import Decimal from "decimal.js";
+import { DB } from "../lib/db";
 
 const mongodbUrl = process.env["mongodbUrl"];
 const mongodbName = process.env["mongodbName"];
@@ -98,13 +99,8 @@ const kuCoinPrice = new Promise(async (resolve) => {
 
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
-    const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
-        (err: any) => {
-            context.log(err);
-            throw new Error("Failed to connect to database");
-        }
-    );
-    const db = await client.db(`${mongodbName}`);
+    const mongo_client = new DB();
+    const db = await mongo_client.connect();
 
     let data: any = await Promise.all([coinBasePrice, coinGeckoPrice, gateIoPrice, kuCoinPrice]);
     const pricePool = {
@@ -125,6 +121,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 date: new Date(),
             }
         }, { upsert: true });
+
+    await mongo_client.disconnect();
 };
 
 export default timerTrigger;

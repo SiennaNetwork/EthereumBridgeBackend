@@ -1,19 +1,14 @@
 import { AzureFunction, Context } from "@azure/functions";
-import { MongoClient } from "mongodb";
 import { whilst } from "async";
-import { SecretNetworkClient, Wallet } from "secretjslatest";
-import { ChainMode, ScrtGrpc, Agent, Poll, Polls } from "siennajs";
+import { SecretNetworkClient } from "secretjslatest";
+import { Agent, Poll, Polls } from "siennajs";
 import { batchMultiCall } from "../lib/multicall";
-
-const mongodbUrl = process.env["mongodbUrl"];
-const mongodbName = process.env["mongodbName"];
+import { get_agent, get_scrt_client } from "../lib/client";
+import { DB } from "../lib/db";
 
 const GOVERNANCE_ADDRESS = process.env["GOVERNANCE_ADDRESS"];
 const GOVERNANCE_CODE_HASH = process.env["GOVERNANCE_CODE_HASH"];
 
-const gRPCUrl = process.env["gRPCUrl"];
-const mnemonic = process.env["mnemonic"];
-const chainId = process.env["CHAINID"];
 
 async function get_polls(agent: Agent, scrt_client: SecretNetworkClient): Promise<Poll[]> {
     return new Promise(async (resolve) => {
@@ -57,20 +52,14 @@ async function get_polls(agent: Agent, scrt_client: SecretNetworkClient): Promis
 }
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
-    const client: MongoClient = await MongoClient.connect(`${mongodbUrl}`, { useUnifiedTopology: true, useNewUrlParser: true }).catch(
-        (err: any) => {
-            context.log(err);
-            throw new Error("Failed to connect to database");
-        }
-    );
+    const mongo_client = new DB();
+    const db = await mongo_client.connect();
 
-    const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
-    const agent = await gRPC_client.getAgent(new Wallet(mnemonic));
-    const scrt_client = await SecretNetworkClient.create({ grpcWebUrl: gRPCUrl, chainId: chainId });
+    const scrt_client = await get_scrt_client();
+    const agent = await get_agent();
 
     const polls = await get_polls(agent, scrt_client);
-    await Promise.all(polls.map((poll) => client
-        .db(mongodbName)
+    await Promise.all(polls.map((poll) => db
         .collection("polls")
         .updateOne(
             { id: poll.id },
@@ -79,6 +68,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             },
             { upsert: true }
         )));
+    await mongo_client.disconnect();
 };
 
 export default timerTrigger;

@@ -1,10 +1,10 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { SigningCosmWasmClient, Secp256k1Pen, BroadcastMode } from "secretjs";
-import { MongoClient } from "mongodb";
 import moment from "moment";
 import { eachLimit, whilst } from "async";
 import { MailService } from "@sendgrid/mail";
 import { create_fee, Fee, PatchedSigningCosmWasmClient } from "siennajs";
+import { DB } from "../lib/db";
 
 const secretNodeURL = process.env["secretNodeURL"];
 const RPTContractAddress = process.env["RPTContractAddress"];
@@ -18,9 +18,6 @@ const vesting_fee_gas = process.env["vesting_fee_gas"] || "2000000";
 const next_epoch_fee_amount = process.env["next_epoch_fee_amount"] || "20000";
 const next_epoch_fee_gas = process.env["next_epoch_fee_gas"] || "50000";
 
-const mongodbName: string = process.env["mongodbName"];
-const mongodbUrl: string = process.env["mongodbUrl"];
-
 const sendGridAPIKey: string = process.env["send_grid_api_key"];
 const sendGridFrom: string = process.env["send_grid_from"];
 const sendGridSubject: string = process.env["send_grid_subject"];
@@ -31,13 +28,12 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const pen = await Secp256k1Pen.fromMnemonic(mnemonic);
     const signingCosmWasmClient: SigningCosmWasmClient = new PatchedSigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes), null, null, BroadcastMode.Sync);
 
-    const client: MongoClient = await MongoClient.connect(mongodbUrl, { useUnifiedTopology: true, useNewUrlParser: true }).catch((err: any) => {
-        context.log(err);
-        throw new Error("Failed to connect to database");
-    });
+    const mongo_client = new DB();
+    const db = await mongo_client.connect();
 
 
-    const rewardsCollection = client.db(mongodbName).collection("rewards_data");
+
+    const rewardsCollection = db.collection("rewards_data");
     const poolsV3: any[] = await rewardsCollection.find({
         rpt_address: RPTContractAddress,
         mgmt_address: MGMTContractAddress,
@@ -48,7 +44,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             throw new Error("Failed to get rewards from collection");
         });
 
-    const dbCollection = client.db(mongodbName).collection("vesting_log");
+    const dbCollection = db.collection("vesting_log");
 
     let fee = create_fee(vesting_fee_amount, vesting_fee_gas);
 
@@ -220,6 +216,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     }
 
+    await mongo_client.disconnect();
     context.res = {
         status: 200, /* Defaults to 200 */
         headers: {
@@ -231,6 +228,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             error: vest_error ? vest_error.toString() : null
         }]
     };
+    
     context.log("Finished calling vest");
 };
 

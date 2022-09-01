@@ -35,7 +35,7 @@ async function multiCall(client: SecretNetworkClient, contracts: MultiCallContra
     });
 }
 
-export async function batchMultiCall(client: SecretNetworkClient, contracts: MultiCallContract[], query?: MultiCallContract["query"], size: number = 10): Promise<MultiCallResponse[]> {
+export async function batchMultiCall(client: SecretNetworkClient, contracts: MultiCallContract[], query?: MultiCallContract["query"], size: number = 5): Promise<MultiCallResponse[]> {
     let batches = [];
     if (contracts.length > size) batches = chunkify(contracts, size);
     else batches = [contracts];
