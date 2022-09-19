@@ -107,8 +107,10 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const fixedValue = findWhere(schedule, { date: moment().format("MM/DD/YYYY") });
     if (!fixedValue) return context.log(`Fixed value could not be found for date: ${moment().format("MM/DD/YYYY")}`);
 
-    const circulating_supply = new Decimal(fixedValue.supply).sub(tokensLockedByTeam).add(fixedValue.vesting || 0).toNumber();
+    const sienna_rewards_pool = await db.collection("rewards_data").findOne({ "inc_token.symbol": "SIENNA", "rewards_token.symbol": "SIENNA", version: "4.1" });
+    const staked_sienna_count = new Decimal(sienna_rewards_pool.total_locked).div(Decimal.pow(10, sienna_rewards_pool.inc_token.decimals)).toDecimalPlaces(0).toNumber();
 
+    const circulating_supply = new Decimal(fixedValue.supply).sub(staked_sienna_count).sub(tokensLockedByTeam).add(fixedValue.vesting || 0).toNumber();
 
     const pools = await db.collection("secretswap_pools").find().toArray().catch(
         (err) => {
