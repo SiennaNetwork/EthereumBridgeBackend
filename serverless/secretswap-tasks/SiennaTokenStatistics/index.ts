@@ -19,7 +19,7 @@ const OVERSEER_ADDRESS_CODE_HASH = process.env["OVERSEER_ADDRESS_CODE_HASH"];
 
 const LendMarkets = async (agent: Agent): Promise<LendOverseerMarket[]> => {
     return new Promise((resolve) => {
-        const overseer = new LendOverseer(agent, { address: OVERSEER_ADDRESS, codeHash: OVERSEER_ADDRESS_CODE_HASH });
+        const overseer = new LendOverseer(agent, OVERSEER_ADDRESS, OVERSEER_ADDRESS_CODE_HASH);
         let call = true, start = 0, contracts = [];
         whilst(
             (callback) => callback(null, call),
@@ -100,7 +100,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         });
     if (!token) return context.log("SIENNA TOKEN NOT FOUND");
 
-    const snip20Contract = new Snip20(agent, { address: token.dst_address, codeHash: token.dst_address_code_hash });
+    const snip20Contract = new Snip20(agent, token.dst_address, token.dst_address_code_hash);
 
     const token_info = await snip20Contract.getTokenInfo();
 

@@ -2,7 +2,7 @@ import { AzureFunction, Context } from "@azure/functions";
 import { MerkleTree } from "merkletreejs";
 import sha256 from "crypto-js/sha256";
 import axios from "axios";
-import { Launchpad, ContractLink, IDO, Agent } from "siennajs";
+import { Launchpad, ContractLink, IDO, Agent, Client } from "siennajs";
 
 import SecureRandom from "secure-random";
 import { get_agent, get_scrt_client } from "../lib/client";
@@ -55,7 +55,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
 
 const instantiateProject = async function (project: any, agent: Agent, scrt_client: SecretNetworkClient, db: Db) {
-    const launchPad: Launchpad = new Launchpad(agent, { codeHash: LAUNCHPAD_CODE_HASH, address: LAUNCHPAD_ADDRESS });
+    const launchPad: Launchpad = new Launchpad(agent, LAUNCHPAD_ADDRESS, LAUNCHPAD_CODE_HASH);
     const leaves = project.addresses;
     const tree = new MerkleTree(leaves, sha256);
     let projectToken;
@@ -119,9 +119,9 @@ const instantiateProject = async function (project: any, agent: Agent, scrt_clie
     if (transaction && transaction.code === 0) {
         const idos = await getIDOs(launchPad);
         const ido = idos.pop();
-
-        const token_info: any = await agent.query({ address: project.projectToken.address, codeHash: project.projectToken.code_hash }, { token_info: {} });
-        const project_IDO = new IDO(agent, { address: ido.address, codeHash: ido.code_hash });
+        const client = new Client(agent, project.projectToken.address, project.projectToken.code_hash);
+        const token_info: any = await agent.query(client, { token_info: {} });
+        const project_IDO = new IDO(agent, ido.address, ido.code_hash);
         const sale_status = await project_IDO.saleStatus();
         const sale_info: any = await project_IDO.saleInfo();
 
@@ -160,10 +160,12 @@ const instantiateProject = async function (project: any, agent: Agent, scrt_clie
 
 const updateProjects = async function (projects: any[], agent: Agent, db: Db) {
     return Promise.all(projects.map(async (p) => {
-        const project_IDO = new IDO(agent, { address: p.contractAddress, codeHash: p.contractAddressCodeHash });
+        const project_IDO = new IDO(agent, p.contractAddress, p.contractAddressCodeHash);
         const sale_status = await project_IDO.saleStatus();
         const sale_info = await project_IDO.saleInfo();
-        const token_info_result: any = await agent.query({ address: p.projectToken.address, codeHash: p.projectToken.code_hash }, { token_info: {} });
+
+        const client = new Client(agent, p.projectToken.address, p.projectToken.code_hash);
+        const token_info_result: any = await agent.query(client, { token_info: {} });
 
         const updateObj = {
             minAllocation: sale_info.sale_config.min_allocation,

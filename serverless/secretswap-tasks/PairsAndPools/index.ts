@@ -39,13 +39,13 @@ const timerTrigger: AzureFunction = async function (
 
     const contracts = contractsV1.concat(contractsV2);
 
-    const multi_result = await batchMultiCall(scrt_client, contracts.map(c => {
+    const multi_result = await batchMultiCall(scrt_client, await Promise.all(contracts.map(async (c) => {
       const pair = pairs.find(p => p.contract_addr === c.address);
       return {
         contract_address: c.address,
-        code_hash: pair && pair.contract_addr_code_hash
+        code_hash: pair && pair.contract_addr_code_hash || await scrt_client.query.compute.contractCodeHash(c.address)
       };
-    }), "pair_info");
+    })), "pair_info");
 
     await Promise.all(contracts.map(async (contract, index) => {
       try {

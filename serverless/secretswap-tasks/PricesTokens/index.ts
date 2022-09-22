@@ -48,7 +48,7 @@ async function PriceFromPool(agent: Agent, _id, db) {
     }
     if (!pair) return "NaN";
 
-    const exchange = new AMMExchange(agent, { address: pair.contract_addr, codeHash: pair.contract_addr_code_hash });
+    const exchange = new AMMExchange(agent, pair.contract_addr, pair.contract_addr_code_hash);
 
     try {
         const result = await exchange.simulateSwap(new TokenAmount({

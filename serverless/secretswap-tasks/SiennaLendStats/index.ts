@@ -15,7 +15,7 @@ const BAND_REST_URL = process.env["BAND_REST_URL"];
 
 const LendMarkets = async (agent: Agent): Promise<LendOverseerMarket[]> => {
     return new Promise((resolve) => {
-        const overseer = new LendOverseer(agent, { address: OVERSEER_ADDRESS, codeHash: OVERSEER_ADDRESS_CODE_HASH });
+        const overseer = new LendOverseer(agent, OVERSEER_ADDRESS, OVERSEER_ADDRESS_CODE_HASH);
         let call = true, start = 0, contracts = [];
         whilst(
             (callback) => callback(null, call),
@@ -36,9 +36,13 @@ const LendMarkets = async (agent: Agent): Promise<LendOverseerMarket[]> => {
 };
 
 const BandTokenPrice = async (symbol) => {
-    const band_data = (await axios.get(`${BAND_REST_URL}/oracle/v1/request_prices`, { params: { symbols: symbol } })).data.price_results;
-    const price = band_data.find((entry) => entry.symbol === symbol);
-    return new Decimal(price.px).div(price.multiplier).toDecimalPlaces(2).toNumber();
+    try {
+        const band_data = (await axios.get(`${BAND_REST_URL}/oracle/v1/request_prices`, { params: { symbols: symbol } })).data.price_results;
+        const price = band_data.find((entry) => entry.symbol === symbol);
+        return new Decimal(price.px).div(price.multiplier).toDecimalPlaces(2).toNumber();
+    } catch {
+        return 0;
+    }
 };
 
 const LendData = async (tokens, rewards) => {
