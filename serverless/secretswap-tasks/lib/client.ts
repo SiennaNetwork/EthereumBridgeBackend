@@ -13,6 +13,6 @@ export async function get_scrt_client(): Promise<SecretNetworkClient> {
 
 export async function get_agent(): Promise<Agent> {
     const gRPC_client = new ScrtGrpc(chainId, { url: gRPCUrl, mode: chainId === "secret-4" ? ChainMode.Mainnet : ChainMode.Devnet });
-    return gRPC_client.getAgent(new Wallet(mnemonic));
+    return gRPC_client.getAgent({ mnemonic });
 }
 

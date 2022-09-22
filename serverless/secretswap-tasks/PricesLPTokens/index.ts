@@ -25,7 +25,7 @@ function getAsset(assets: any[], address) {
 }
 const getLPPrice = async (agent: Agent, secret_token: any, tokens: any[], pairs: any[], pools: any[]): Promise<string> => {
     try {
-        const snip20Contract = new Snip20(agent, { address: secret_token.address, codeHash: secret_token.address_code_hash });
+        const snip20Contract = new Snip20(agent, secret_token.address, secret_token.address_code_hash);
         const token_info = await snip20Contract.getTokenInfo();
 
         const addresses = token_info.name.split("SiennaSwap Liquidity Provider (LP) token for ")[1];

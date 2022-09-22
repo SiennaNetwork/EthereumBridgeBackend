@@ -12,7 +12,7 @@ const GOVERNANCE_CODE_HASH = process.env["GOVERNANCE_CODE_HASH"];
 
 async function get_polls(agent: Agent, scrt_client: SecretNetworkClient): Promise<Poll[]> {
     return new Promise(async (resolve) => {
-        const polls_class = new Polls(agent, { address: GOVERNANCE_ADDRESS, codeHash: GOVERNANCE_CODE_HASH });
+        const polls_class = new Polls(agent, GOVERNANCE_ADDRESS, GOVERNANCE_CODE_HASH);
         let polls: Poll[] = [];
         try {
             const results_per_page = 2;

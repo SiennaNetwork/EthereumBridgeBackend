@@ -19,11 +19,6 @@
   },
   "dependencies": {
     "@bandprotocol/bandchain.js": "^2.0.3",
-    "@fadroma/scrt": "^1.0.5",
-    "@fadroma/scrt-amino": "^1.0.5",
-    "@fadroma/tokens": "^3.0.3",
-    "@hackbg/formati": "^3.0.1",
-    "@hackbg/konzola": "^1.1.2",
     "@sendgrid/mail": "^7.4.7",
     "@ungap/structured-clone": "^1.0.1",
     "async": "^3.2.3",
@@ -41,9 +36,16 @@
     "secretjslatest": "npm:secretjs@1.4.0",
     "secure-random": "^1.1.2",
     "sienna-liquidator": "github:SiennaNetwork/lend-liquidation-bot#master",
-    "siennajs": "github:SiennaNetwork/siennajs#1.0.0-rc.12",
+    "siennajs": "github:SiennaNetwork/siennajs#refactor/slots",
     "underscore": "^1.13.1",
-    "yaml": "^2.1.1"
+    "yaml": "^2.1.1",
+    "@fadroma/client":     "^6",
+    "@fadroma/scrt":       "^3.0.2",
+    "@fadroma/scrt-amino": "^3.0.1",
+    "@fadroma/tokens":     "^5.0.1",
+    "@hackbg/konzola":     "^2.1",
+    "@types/js-yaml":      "^4.0.5",
+    "js-yaml":             "^4.1.0"
   },
   "packageManager": "pnpm@7.9.0",
   "optionalDependencies": {
