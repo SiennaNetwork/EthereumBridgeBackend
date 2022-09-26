@@ -18,6 +18,14 @@ const sendGridFrom: string = process.env["send_grid_from"];
 const sendGridSubject: string = process.env["send_grid_subject"];
 const sendGridTo: string = process.env["send_grid_to"];
 
+const RPTcontracts = ["secret1qh0ps3jl9hl0muy8e5fqd088sj6pswz46qu2n3",
+    "secret1mmqgn2ektjz3valxeea4e2qgyg2r8mdz5gujgt",
+    "secret1e4gt9dz0j6jv4dgwkm3yrp5h7s8wmdpt05ja94",
+    "secret19u0l8ffplkerem56fl39fw7jzvrw3uy5f8s73y",
+    "secret1xm82txzq72c8vxqxpp9gcxrt8wm9gqcercphsa",
+    "secret18hv2wh6wrw6lj0larrga50unae8ekz84llgh48",
+    "secret1d9fkrf8sxuummz89c3zp9uswk5v4hhsqr7vqc0"];
+
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
     const mongo_client = new DB();
@@ -79,6 +87,13 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 msg: { vest: {} }
             }, { broadcastCheckIntervalMs: 10_000, gasLimit: vesting_fee_gas, broadcastTimeoutMs: 240_000 });
 
+            if (process.env["CHAINID"] === "secret-4") for (const rpt of RPTcontracts) {
+                await scrt_client.tx.compute.executeContract({
+                    contractAddress: rpt,
+                    sender: sender_address,
+                    msg: { vest: {} }
+                }, { broadcastCheckIntervalMs: 10_000, gasLimit: vesting_fee_gas, broadcastTimeoutMs: 240_000 });
+            }
             //wait 5s
             await wait(5000);
 
