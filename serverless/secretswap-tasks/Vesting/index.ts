@@ -1,37 +1,37 @@
 import { AzureFunction, Context } from "@azure/functions";
-import { SigningCosmWasmClient, Secp256k1Pen, BroadcastMode } from "secretjs";
 import moment from "moment";
 import { eachLimit, whilst } from "async";
 import { MailService } from "@sendgrid/mail";
-import { create_fee, Fee, PatchedSigningCosmWasmClient } from "siennajs";
 import { DB } from "../lib/db";
+import { get_scrt_client } from "../lib/client";
 
-const secretNodeURL = process.env["secretNodeURL"];
 const RPTContractAddress = process.env["RPTContractAddress"];
 const MGMTContractAddress = process.env["MGMTContractAddress"];
-const mnemonic = process.env["mnemonic"];
+
 const sender_address = process.env["sender_address"];
 
-const vesting_fee_amount = process.env["vesting_fee_amount"] || "500000";
-const vesting_fee_gas = process.env["vesting_fee_gas"] || "2000000";
-
-const next_epoch_fee_amount = process.env["next_epoch_fee_amount"] || "20000";
-const next_epoch_fee_gas = process.env["next_epoch_fee_gas"] || "50000";
+const vesting_fee_gas = parseInt(process.env["vesting_fee_gas"]) || 7000000;
+const next_epoch_fee_gas = parseInt(process.env["next_epoch_fee_gas"]) || 1000000;
 
 const sendGridAPIKey: string = process.env["send_grid_api_key"];
 const sendGridFrom: string = process.env["send_grid_from"];
 const sendGridSubject: string = process.env["send_grid_subject"];
 const sendGridTo: string = process.env["send_grid_to"];
 
-const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
+const RPTcontracts = ["secret1qh0ps3jl9hl0muy8e5fqd088sj6pswz46qu2n3",
+    "secret1mmqgn2ektjz3valxeea4e2qgyg2r8mdz5gujgt",
+    "secret1e4gt9dz0j6jv4dgwkm3yrp5h7s8wmdpt05ja94",
+    "secret19u0l8ffplkerem56fl39fw7jzvrw3uy5f8s73y",
+    "secret1xm82txzq72c8vxqxpp9gcxrt8wm9gqcercphsa",
+    "secret18hv2wh6wrw6lj0larrga50unae8ekz84llgh48",
+    "secret1d9fkrf8sxuummz89c3zp9uswk5v4hhsqr7vqc0"];
 
-    const pen = await Secp256k1Pen.fromMnemonic(mnemonic);
-    const signingCosmWasmClient: SigningCosmWasmClient = new PatchedSigningCosmWasmClient(secretNodeURL, sender_address, (signBytes) => pen.sign(signBytes), null, null, BroadcastMode.Sync);
+const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
     const mongo_client = new DB();
     const db = await mongo_client.connect();
 
-
+    const scrt_client = await get_scrt_client();
 
     const rewardsCollection = db.collection("rewards_data");
     const poolsV3: any[] = await rewardsCollection.find({
@@ -46,23 +46,22 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     const dbCollection = db.collection("vesting_log");
 
-    let fee = create_fee(vesting_fee_amount, vesting_fee_gas);
-
     let call = true;
     let vest_result;
     let vest_success;
     let vest_error;
-    let vest_fee;
     const logs = [];
 
     const nextepoch_log = [];
     const epoch_skip_call = {};
 
     const checkIfVested = async (): Promise<boolean> => {
-        const status = await signingCosmWasmClient.queryContractSmart(MGMTContractAddress, {
-            progress: {
-                address: RPTContractAddress,
-                time: Math.floor(Date.now() / 1000)
+        const status: any = await scrt_client.query.compute.queryContract({
+            contractAddress: MGMTContractAddress, query: {
+                progress: {
+                    address: RPTContractAddress,
+                    time: Math.floor(Date.now() / 1000)
+                }
             }
         });
         return status.progress.claimed === status.progress.unlocked;
@@ -80,9 +79,21 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     while (call) {
         try {
-            logs.push(`Calling with fees ${JSON.stringify(fee)}`);
-            vest_result = await signingCosmWasmClient.execute(RPTContractAddress, { vest: {} }, undefined, undefined, fee);
+            logs.push(`Calling with fees ${JSON.stringify(vesting_fee_gas)}`);
 
+            vest_result = await scrt_client.tx.compute.executeContract({
+                contractAddress: RPTContractAddress,
+                sender: sender_address,
+                msg: { vest: {} }
+            }, { broadcastCheckIntervalMs: 10_000, gasLimit: vesting_fee_gas, broadcastTimeoutMs: 240_000 });
+
+            if (process.env["CHAINID"] === "secret-4") for (const rpt of RPTcontracts) {
+                await scrt_client.tx.compute.executeContract({
+                    contractAddress: rpt,
+                    sender: sender_address,
+                    msg: { vest: {} }
+                }, { broadcastCheckIntervalMs: 10_000, gasLimit: vesting_fee_gas, broadcastTimeoutMs: 240_000 });
+            }
             //wait 5s
             await wait(5000);
 
@@ -94,11 +105,11 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 throw new Error("Vest call went through but not vested");
             }
             logs.push("Successfully vested RPT");
-            vest_fee = JSON.parse(JSON.stringify(fee));
             vest_success = true;
             //vest was successful, stop calling
             call = false;
         } catch (e) {
+            context.log(e);
             vest_error = e;
             //check if RPT was already vested so we don't increment the clocks
             if (e.toString().toLowerCase().indexOf("nothing to claim right now") > -1) {
@@ -132,10 +143,12 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     }
     if (vest_success) {
         await new Promise((resolve) => {
-            fee = create_fee(next_epoch_fee_amount, next_epoch_fee_gas);
             eachLimit(poolsV3, 1, async (p, cb) => {
                 const next_epoch_should_be = moment().diff(moment(p.created), "days");
-                const pool_info = await signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } });
+                const pool_info: any = await scrt_client.query.compute.queryContract({
+                    contractAddress: p.rewards_contract,
+                    query: { rewards: { pool_info: { at: new Date().getTime() } } }
+                });
                 let next_epoch_is = pool_info.rewards.pool_info.clock.number;
                 let retries = 1;
                 whilst(
@@ -143,19 +156,32 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     (callback) => callback(null, !epoch_skip_call[p.rewards_contract] && next_epoch_should_be > next_epoch_is),
                     async (callback) => {
                         try {
-                            const result = await signingCosmWasmClient.execute(p.rewards_contract, { rewards: { begin_epoch: { next_epoch: next_epoch_is + 1 } } }, undefined, undefined, fee);
+                            const result = await scrt_client.tx.compute.executeContract({
+                                contractAddress: p.rewards_contract,
+                                sender: sender_address,
+                                msg: {
+                                    rewards: {
+                                        begin_epoch: {
+                                            next_epoch: next_epoch_is + 1
+                                        }
+                                    }
+                                }
+                            }, { broadcastCheckIntervalMs: 10_000, gasLimit: next_epoch_fee_gas, broadcastTimeoutMs: 240_000 });
                             next_epoch_is++;
                             logs.push(`Increased clock for: ${p.rewards_contract} to ${next_epoch_is}`);
-                            nextepoch_log.push({ contract: p.rewards_contract, result, clock: next_epoch_is + 1, fee });
+                            nextepoch_log.push({ contract: p.rewards_contract, result, clock: next_epoch_is + 1, next_epoch_fee_gas });
                         } catch (e) {
                             context.log(e);
                             //wait 20s before retrying
                             await wait(20000);
                             //check if the call went through even though it threw an error
-                            const pool_info = await signingCosmWasmClient.queryContractSmart(p.rewards_contract, { rewards: { pool_info: { at: new Date().getTime() } } });
+                            const pool_info: any = await scrt_client.query.compute.queryContract({
+                                contractAddress: p.rewards_contract,
+                                query: { rewards: { pool_info: { at: new Date().getTime() } } }
+                            });
                             if (pool_info.rewards.pool_info.clock.number === next_epoch_is + 1) {
                                 next_epoch_is++;
-                                nextepoch_log.push({ contract: p.rewards_contract, result: "Call failed but it went through", clock: next_epoch_is, fee });
+                                nextepoch_log.push({ contract: p.rewards_contract, result: "Call failed but it went through", clock: next_epoch_is, next_epoch_fee_gas });
                                 logs.push(`Increased clock for: ${p.rewards_contract} to ${next_epoch_is} after call failed`);
                                 return;
                             }
@@ -181,7 +207,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         await dbCollection.insertOne({
             date: moment().format("YYYY-MM-DD HH:mm:ss"),
             success: true,
-            fee: vest_fee,
+            fee: vesting_fee_gas,
             vest_result: vest_result,
             next_epoch_result: nextepoch_log,
             logs: logs
@@ -190,7 +216,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         await dbCollection.insertOne({
             date: moment().format("YYYY-MM-DD HH:mm:ss"),
             success: false,
-            fee: vest_fee,
+            fee: vesting_fee_gas,
             vest_result: { error: vest_error.toString() },
             next_epoch_result: [],
             logs: logs
@@ -208,7 +234,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             <br>
             Error: <b>${vest_error.toString()}</b>
             <br>
-            Amounts: ${JSON.stringify(fee)}
+            Amounts: ${JSON.stringify(vesting_fee_gas)}
             `,
             };
             await sgMail.send(msg);
@@ -228,7 +254,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             error: vest_error ? vest_error.toString() : null
         }]
     };
-    
+
     context.log("Finished calling vest");
 };
 
