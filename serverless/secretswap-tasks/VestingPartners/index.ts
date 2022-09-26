@@ -22,7 +22,9 @@ const sendGridTo: string = process.env["send_grid_to"];
 
 interface RPTMGMTPair {
     RPT: string;
+    RPT_HASH: string;
     MGMT: string;
+    MGMT_HASH: string;
 }
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
@@ -31,7 +33,9 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     const checkIfVested = async (pair: RPTMGMTPair): Promise<boolean> => {
         const status: any = await scrt_client.query.compute.queryContract({
-            contractAddress: pair.MGMT, query: {
+            codeHash: pair.MGMT_HASH,
+            contractAddress: pair.MGMT,
+            query: {
                 progress: {
                     address: pair.RPT,
                     time: Math.floor(Date.now() / 1000)
@@ -68,7 +72,9 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     //create a rpt/mgmt map obj
     const pairs: RPTMGMTPair[] = pools.map(p => ({
         RPT: p.rpt_address,
-        MGMT: p.mgmt_address
+        MGMT: p.mgmt_address,
+        RPT_HASH: p.rpt_address_code_hash,
+        MGMT_HASH: p.mgmt_address_code_hash
     }));
 
     //make map obj unique 
@@ -91,6 +97,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 try {
                     logs.push(`Calling with fees ${JSON.stringify(vesting_fee_gas)}`);
                     vest_result = await scrt_client.tx.compute.executeContract({
+                        codeHash: pair.RPT_HASH,
                         contractAddress: pair.RPT,
                         sender: sender_address,
                         msg: { vest: {} }
@@ -153,6 +160,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     eachLimit(poolsV3, 1, async (p, cbPool) => {
                         const next_epoch_should_be = moment().diff(moment(p.created), "days");
                         const pool_info: any = await scrt_client.query.compute.queryContract({
+                            codeHash: p.rewards_contract_hash,
                             contractAddress: p.rewards_contract,
                             query: { rewards: { pool_info: { at: new Date().getTime() } } }
                         });
@@ -164,6 +172,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                             async (callback) => {
                                 try {
                                     const result = await scrt_client.tx.compute.executeContract({
+                                        codeHash: p.rewards_contract_hash,
                                         contractAddress: p.rewards_contract,
                                         sender: sender_address,
                                         msg: {
@@ -184,6 +193,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                                     await wait(20000);
                                     //check if the call went through even though it threw an error
                                     const pool_info: any = await scrt_client.query.compute.queryContract({
+                                        codeHash: p.rewards_contract_hash,
                                         contractAddress: p.rewards_contract,
                                         query: { rewards: { pool_info: { at: new Date().getTime() } } }
                                     });
