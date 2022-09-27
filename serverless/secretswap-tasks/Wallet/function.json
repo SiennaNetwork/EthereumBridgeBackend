@@ -1,0 +1,19 @@
+{
+    "bindings": [
+        {
+            "type": "httpTrigger",
+            "name": "req",
+            "direction": "in",
+            "methods": [
+                "get"
+            ],
+            "route": "wallet"
+        },
+        {
+            "type": "http",
+            "name": "res",
+            "direction": "out"
+        }
+    ],
+    "scriptFile": "../dist/Wallet/index.js"
+}
