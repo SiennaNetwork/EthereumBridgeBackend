@@ -10,8 +10,9 @@ const MGMTContractAddress = process.env["MGMTContractAddress"];
 
 const sender_address = process.env["sender_address"];
 
-const vesting_fee_gas = parseInt(process.env["vesting_fee_gas"]) || 7000000;
-const next_epoch_fee_gas = parseInt(process.env["next_epoch_fee_gas"]) || 1000000;
+const vesting_fee_gas = parseInt(process.env["vesting_fee_gas"]) || 2_000_000;
+const vest_fee_gas_2 = parseInt(process.env["vesting_fee_gas_2"]) || 1_000_000;
+const next_epoch_fee_gas = parseInt(process.env["next_epoch_fee_gas"]) || 150_000;
 
 const sendGridAPIKey: string = process.env["send_grid_api_key"];
 const sendGridFrom: string = process.env["send_grid_from"];
@@ -25,6 +26,8 @@ const RPTcontracts = ["secret1qh0ps3jl9hl0muy8e5fqd088sj6pswz46qu2n3",
     "secret1xm82txzq72c8vxqxpp9gcxrt8wm9gqcercphsa",
     "secret18hv2wh6wrw6lj0larrga50unae8ekz84llgh48",
     "secret1d9fkrf8sxuummz89c3zp9uswk5v4hhsqr7vqc0"];
+
+const RPTcontractsHash = "8f5e72f9d943390d5f69a5b7342be670e338255c26445884e769b0a4ff5de91b";
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
 
@@ -86,14 +89,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 sender: sender_address,
                 msg: { vest: {} }
             }, { broadcastCheckIntervalMs: 10_000, gasLimit: vesting_fee_gas, broadcastTimeoutMs: 240_000 });
-
-            if (process.env["CHAINID"] === "secret-4") for (const rpt of RPTcontracts) {
-                await scrt_client.tx.compute.executeContract({
-                    contractAddress: rpt,
-                    sender: sender_address,
-                    msg: { vest: {} }
-                }, { broadcastCheckIntervalMs: 10_000, gasLimit: vesting_fee_gas, broadcastTimeoutMs: 240_000 });
-            }
             //wait 5s
             await wait(5000);
 
@@ -104,7 +99,23 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 vest_success = false;
                 throw new Error("Vest call went through but not vested");
             }
-            logs.push("Successfully vested RPT");
+            logs.push("Successfully vested main RPT");
+
+            if (process.env["CHAINID"] === "secret-4") for (const rpt of RPTcontracts) {
+                try {
+                    logs.push(`Calling vest on ${rpt} with fees ${JSON.stringify(vest_fee_gas_2)}`);
+                    await scrt_client.tx.compute.executeContract({
+                        contractAddress: rpt,
+                        codeHash: RPTcontractsHash,
+                        sender: sender_address,
+                        msg: { vest: {} }
+                    }, { broadcastCheckIntervalMs: 10_000, gasLimit: vest_fee_gas_2, broadcastTimeoutMs: 240_000 });
+                    logs.push(`Successfully vested RPT ${rpt}`);
+                } catch (e) {
+                    logs.push(`Vesting ${rpt} Error: ${e.toString()}`);
+                }
+            }
+
             vest_success = true;
             //vest was successful, stop calling
             call = false;
