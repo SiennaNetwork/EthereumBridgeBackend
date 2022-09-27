@@ -12,7 +12,7 @@ const sender_address = process.env["sender_address"];
 
 const vesting_fee_gas = parseInt(process.env["vesting_fee_gas"]) || 2_000_000;
 const vest_fee_gas_2 = parseInt(process.env["vesting_fee_gas_2"]) || 1_000_000;
-const next_epoch_fee_gas = parseInt(process.env["next_epoch_fee_gas"]) || 1_000_000;
+const next_epoch_fee_gas = parseInt(process.env["next_epoch_fee_gas"]) || 150_000;
 
 const sendGridAPIKey: string = process.env["send_grid_api_key"];
 const sendGridFrom: string = process.env["send_grid_from"];

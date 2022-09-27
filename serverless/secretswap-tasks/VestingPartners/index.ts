@@ -11,8 +11,8 @@ const SIENNAMGMTContractAddress = process.env["MGMTContractAddress"];
 
 const sender_address = process.env["sender_address"];
 
-const vesting_fee_gas = parseInt(process.env["vesting_partners_fee_gas"]) || 750000;
-const next_epoch_fee_gas = parseInt(process.env["next_epoch_fee_gas"]) || 1000000;
+const vesting_fee_gas = parseInt(process.env["vesting_partners_fee_gas"]) || 750_000;
+const next_epoch_fee_gas = parseInt(process.env["next_epoch_fee_gas"]) || 150_000;
 
 const sendGridAPIKey: string = process.env["send_grid_api_key"];
 const sendGridFrom: string = process.env["send_grid_from"];
