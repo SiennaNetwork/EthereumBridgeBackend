@@ -27,7 +27,7 @@ specifiers:
   node-fetch: ^2.6.1
   npm-run-all: ^4.1.5
   secretjs: 0.17.5
-  secretjslatest: npm:secretjs@1.4.0
+  secretjslatest: npm:secretjs@1.4.1
   secure-random: ^1.1.2
   sienna-liquidator: github:SiennaNetwork/lend-liquidation-bot#master
   siennajs: github:SiennaNetwork/siennajs#refactor/slots
@@ -58,7 +58,7 @@ dependencies:
   mongodb: 3.7.3
   node-fetch: 2.6.7
   secretjs: 0.17.5
-  secretjslatest: /secretjs/1.4.0_google-protobuf@3.21.0
+  secretjslatest: /secretjs/1.4.1_google-protobuf@3.21.0
   secure-random: 1.1.2
   sienna-liquidator: github.com/SiennaNetwork/lend-liquidation-bot/a067afda33c708c7bc9a4f413233481fa4b498f7
   siennajs: github.com/SiennaNetwork/siennajs/b951bdf8dd34b6e311910bf2486ff569480214e0_google-protobuf@3.21.0
@@ -115,7 +115,7 @@ packages:
       '@cosmjs/encoding': 0.29.0
       '@cosmjs/math': 0.29.0
       '@cosmjs/utils': 0.29.0
-      '@noble/hashes': 1.0.0
+      '@noble/hashes': 1.1.2
       bn.js: 5.2.1
       elliptic: 6.5.4
       libsodium-wrappers: 0.7.10
@@ -2201,8 +2201,8 @@ packages:
       - google-protobuf
     dev: false
 
-  /secretjs/1.4.0_google-protobuf@3.21.0:
-    resolution: {integrity: sha512-GfQkNbxlmskU74zt90LlxudlpG8rm5eRt+6VqufUucxpYHCN8aT9xG6/KhtYrzh+46reTnTeiBiPpIv/c0SfpQ==}
+  /secretjs/1.4.1_google-protobuf@3.21.0:
+    resolution: {integrity: sha512-/+7GpnI7QczcpATx/REDvbvlhfIPAR06vQvclfawo7B1FSZZ6uz8qd+DhULZJJ1JMlIL419qsLtTuN222tU+ag==}
     dependencies:
       '@cosmjs/encoding': 0.27.1
       '@cosmjs/math': 0.27.1
