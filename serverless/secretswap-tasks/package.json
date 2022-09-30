@@ -33,7 +33,7 @@
     "mongo-sanitize": "^1.1.0",
     "node-fetch": "^2.6.1",
     "secretjs": "0.17.5",
-    "secretjslatest": "npm:secretjs@1.4.0",
+    "secretjslatest": "npm:secretjs@1.4.1",
     "secure-random": "^1.1.2",
     "sienna-liquidator": "github:SiennaNetwork/lend-liquidation-bot#master",
     "siennajs": "github:SiennaNetwork/siennajs#refactor/slots",
