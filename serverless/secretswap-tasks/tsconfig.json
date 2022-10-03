@@ -13,7 +13,6 @@
   },
   "include": [
     "./node_modules/sienna-liquidator",
-    "./node_modules/siennajs",
     "*/*.ts"
   ]
 }

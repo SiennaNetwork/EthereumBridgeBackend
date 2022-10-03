@@ -30,7 +30,7 @@ specifiers:
   secretjslatest: npm:secretjs@1.4.1
   secure-random: ^1.1.2
   sienna-liquidator: github:SiennaNetwork/lend-liquidation-bot#master
-  siennajs: github:SiennaNetwork/siennajs#refactor/slots
+  siennajs: https://github.com/SiennaNetwork/siennajs/releases/download/2.1.0/siennajs-2.1.0.tgz
   typescript: ^4.7.4
   underscore: ^1.13.1
   yaml: ^2.1.1
@@ -61,7 +61,7 @@ dependencies:
   secretjslatest: /secretjs/1.4.1_google-protobuf@3.21.0
   secure-random: 1.1.2
   sienna-liquidator: github.com/SiennaNetwork/lend-liquidation-bot/a067afda33c708c7bc9a4f413233481fa4b498f7
-  siennajs: github.com/SiennaNetwork/siennajs/b951bdf8dd34b6e311910bf2486ff569480214e0_google-protobuf@3.21.0
+  siennajs: '@github.com/SiennaNetwork/siennajs/releases/download/2.1.0/siennajs-2.1.0.tgz_google-protobuf@3.21.0'
   underscore: 1.13.4
   yaml: 2.1.1
 
@@ -180,25 +180,20 @@ packages:
       - dotenv
     dev: false
 
+  /@fadroma/client/6.2.0:
+    resolution: {integrity: sha512-AXNfcT1Qk+a5UTBehsDwMPQgTW4Xto5TCD7OZC+1tekFk+QiuxWOHvPugv49M/EEJRg4GluloL9HGQd0vccYow==}
+    dependencies:
+      '@hackbg/komandi': 6.1.2
+      '@hackbg/konzola': 2.1.0
+    transitivePeerDependencies:
+      - dotenv
+    dev: false
+
   /@fadroma/scrt-amino/3.0.1_google-protobuf@3.21.0:
     resolution: {integrity: sha512-r9e1FsgLXUm3QR1nFWA2TknctBBFG909SYwbk8c0MxoIBuwOEuuMoM0xqS8yXzDABRCrdfagl2QIkiMmwImW8A==}
     dependencies:
       '@fadroma/scrt': 3.0.2_google-protobuf@3.21.0
       '@hackbg/formati': 3.2.0
-      axios: 0.26.0
-      exponential-backoff: 3.1.0
-      secretjs: 0.17.5
-    transitivePeerDependencies:
-      - debug
-      - dotenv
-      - google-protobuf
-    dev: false
-
-  /@fadroma/scrt-amino/3.0.4_google-protobuf@3.21.0:
-    resolution: {integrity: sha512-eefmoK040W34tfbc55nTqTXURsBL6Mb/sAF445XgwEmbzeHqkcJy/Gx+kEvRU3vnLo6Fw8SqNu4HpyOk5/Ch/A==}
-    dependencies:
-      '@fadroma/scrt': 3.0.5_google-protobuf@3.21.0
-      '@hackbg/formati': 5.1.1
       axios: 0.26.0
       exponential-backoff: 3.1.0
       secretjs: 0.17.5
@@ -222,15 +217,15 @@ packages:
       - google-protobuf
     dev: false
 
-  /@fadroma/scrt/3.0.5_google-protobuf@3.21.0:
-    resolution: {integrity: sha512-CTMl7gZx/s7bCcVwcyHKlJo7SPzAgjzeDHAqBMR71DjwkLDuvWr9W/09SGf4O11Q7US2eEFO24uZsu6ylcoU+w==}
+  /@fadroma/scrt/4.1.0_google-protobuf@3.21.0:
+    resolution: {integrity: sha512-QWs89Vxz9P8ty2OnaoVFrtigPShgmmoMeHn+6GkwgGDvb5AUWy2CNW9UZzbTQzaF69JAZdzOJWpLso8cD/tKnA==}
     dependencies:
-      '@fadroma/client': 6.0.0
+      '@fadroma/client': 6.2.0
       '@hackbg/formati': 5.1.1
       '@hackbg/konfizi': 3.0.1
       '@hackbg/konzola': 2.1.0
       '@ungap/structured-clone': 1.0.1
-      secretjs: 1.4.0-alpha.4_google-protobuf@3.21.0
+      secretjs: 1.4.3_google-protobuf@3.21.0
     transitivePeerDependencies:
       - dotenv
       - google-protobuf
@@ -248,11 +243,11 @@ packages:
       - google-protobuf
     dev: false
 
-  /@fadroma/tokens/5.0.3_google-protobuf@3.21.0:
-    resolution: {integrity: sha512-YcqQbc+ZI1ml+UO7t9asrh3qNvFnxnqDwasKTa7Ub7qvW8l8JRsw6wUm52pXY4ntcev1IKOlv7QNRAn0Mr2VHw==}
+  /@fadroma/tokens/5.1.6_google-protobuf@3.21.0:
+    resolution: {integrity: sha512-xC0l+sV3OcC3XmJk/SoBwMRZH04v9CgtxzGQTmbNRvcEdBBSliGgdObeoVnLywlMNCGJ24g/7sCQ3rsOAgkWqw==}
     dependencies:
-      '@fadroma/client': 6.0.0
-      '@fadroma/scrt': 3.0.5_google-protobuf@3.21.0
+      '@fadroma/client': 6.2.0
+      '@fadroma/scrt': 4.1.0_google-protobuf@3.21.0
       '@hackbg/formati': 5.1.1
       '@hackbg/konzola': 2.1.0
     transitivePeerDependencies:
@@ -2226,6 +2221,31 @@ packages:
       - google-protobuf
     dev: false
 
+  /secretjs/1.4.3_google-protobuf@3.21.0:
+    resolution: {integrity: sha512-IDhoPWg1Nra7ji3FU07ZHbxkp1S5uQnbLsDNj/t6Q9M9wysxv/BZafHnoEkAcB7FYYwOkxs5RxnSAZ2oiJORPw==}
+    dependencies:
+      '@cosmjs/encoding': 0.27.1
+      '@cosmjs/math': 0.27.1
+      '@improbable-eng/grpc-web': 0.15.0_google-protobuf@3.21.0
+      '@improbable-eng/grpc-web-node-http-transport': 0.15.0_fng5pv4qmdetiqq66m6yjkaacu
+      '@noble/hashes': 1.0.0
+      '@noble/secp256k1': 1.6.3
+      '@osmonauts/helpers': 0.3.8
+      bech32: 2.0.0
+      big-integer: 1.6.51
+      bignumber.js: 9.0.2
+      bip32: 2.0.6
+      bip39: 3.0.4
+      curve25519-js: 0.0.4
+      is-gzip: 2.0.0
+      miscreant: 0.3.2
+      pako: 2.0.4
+      protobufjs: 6.11.3
+      secure-random: 1.1.2
+    transitivePeerDependencies:
+      - google-protobuf
+    dev: false
+
   /secure-random/1.1.2:
     resolution: {integrity: sha512-H2bdSKERKdBV1SwoqYm6C0y+9EA94v6SUBOWO8kDndc4NoUih7Dv6Tsgma7zO1lv27wIvjlD0ZpMQk7um5dheQ==}
     dev: false
@@ -2649,6 +2669,24 @@ packages:
     engines: {node: '>= 14'}
     dev: false
 
+  '@github.com/SiennaNetwork/siennajs/releases/download/2.1.0/siennajs-2.1.0.tgz_google-protobuf@3.21.0':
+    resolution: {tarball: https://github.com/SiennaNetwork/siennajs/releases/download/2.1.0/siennajs-2.1.0.tgz}
+    id: '@github.com/SiennaNetwork/siennajs/releases/download/2.1.0/siennajs-2.1.0.tgz'
+    name: siennajs
+    version: 2.1.0
+    engines: {node: ^12.16 || >=13.7}
+    dependencies:
+      '@fadroma/scrt': 4.1.0_google-protobuf@3.21.0
+      '@fadroma/tokens': 5.1.6_google-protobuf@3.21.0
+      '@hackbg/formati': 5.1.1
+      '@hackbg/konzola': 2.1.0
+      crypto-js: 4.1.1
+      merkletreejs: 0.2.32
+    transitivePeerDependencies:
+      - dotenv
+      - google-protobuf
+    dev: false
+
   github.com/SiennaNetwork/lend-liquidation-bot/a067afda33c708c7bc9a4f413233481fa4b498f7:
     resolution: {tarball: https://codeload.github.com/SiennaNetwork/lend-liquidation-bot/tar.gz/a067afda33c708c7bc9a4f413233481fa4b498f7}
     name: sienna-liquidator
@@ -2662,29 +2700,6 @@ packages:
     transitivePeerDependencies:
       - debug
       - encoding
-    dev: false
-
-  github.com/SiennaNetwork/siennajs/b951bdf8dd34b6e311910bf2486ff569480214e0_google-protobuf@3.21.0:
-    resolution: {tarball: https://codeload.github.com/SiennaNetwork/siennajs/tar.gz/b951bdf8dd34b6e311910bf2486ff569480214e0}
-    id: github.com/SiennaNetwork/siennajs/b951bdf8dd34b6e311910bf2486ff569480214e0
-    name: siennajs
-    version: 1.0.0-rc.27
-    engines: {node: ^12.16 || >=13.7}
-    dependencies:
-      '@fadroma/client': 6.0.0
-      '@fadroma/scrt': 3.0.5_google-protobuf@3.21.0
-      '@fadroma/scrt-amino': 3.0.4_google-protobuf@3.21.0
-      '@fadroma/tokens': 5.0.3_google-protobuf@3.21.0
-      '@hackbg/formati': 5.1.1
-      '@hackbg/konzola': 2.1.0
-      '@types/js-yaml': 4.0.5
-      crypto-js: 4.1.1
-      js-yaml: 4.1.0
-      merkletreejs: 0.2.32
-    transitivePeerDependencies:
-      - debug
-      - dotenv
-      - google-protobuf
     dev: false
 
   github.com/slavaGanzin/prettyjson/d880b8af2973a1a1b277944c3b573d7d6a93ba8f:
