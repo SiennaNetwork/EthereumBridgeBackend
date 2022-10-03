@@ -5,7 +5,7 @@ import { Rewards_v2_Pool, Rewards_v3_Total } from "siennajs";
 import { get_scrt_client } from "../lib/client";
 import { DB } from "../lib/db";
 
-const supported_rewards_versions = ["1", "2", "3", "3.1", "4.1"];
+const supported_rewards_versions = ["1", "2", "3", "3.1", "4.1", "4.2"];
 
 const timerTrigger: AzureFunction = async function (context: Context, myTimer: any): Promise<void> {
     const mongo_client = new DB();
@@ -30,6 +30,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             case "3":
             case "3.1":
             case "4.1":
+            case "4.2":
                 query = { rewards: { pool_info: { at: new Date().getTime() } } };
                 break;
         }
@@ -52,6 +53,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 case "3":
                 case "3.1":
                 case "4.1":
+                case "4.2":
                     total_locked = (multi_result[index] as { rewards: { pool_info: Rewards_v3_Total } }).rewards.pool_info.staked.toString();
                     break;
             }
