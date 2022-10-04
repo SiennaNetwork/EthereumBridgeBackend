@@ -26,7 +26,6 @@ async function get_polls(agent: Agent, scrt_client: SecretNetworkClient): Promis
                     page++;
                     callback();
                 }, async () => {
-                    polls = polls.filter(p => p.status === "active");
                     const multi_result = await batchMultiCall(scrt_client, polls.map(poll => ({
                         contract_address: GOVERNANCE_ADDRESS,
                         code_hash: GOVERNANCE_CODE_HASH,
