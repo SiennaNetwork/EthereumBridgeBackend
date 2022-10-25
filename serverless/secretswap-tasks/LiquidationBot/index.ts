@@ -4,7 +4,7 @@ import { Liquidator, Config, MarketConfig } from "sienna-liquidator/src/liquidat
 import { DB } from "../lib/db";
 
 
-const secretNodeURL = process.env["secretNodeURL"];
+const gRPCUrl = process.env["gRPCUrl"];
 const OVERSEER_ADDRESS = process.env["OVERSEER_ADDRESS"];
 const BAND_REST_URL = process.env["BAND_REST_URL"];
 const mnemonic = process.env["liquidation_mnemonic"];
@@ -29,7 +29,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const config: Config = {
         markets: marketConfig,
         band_url: BAND_REST_URL,
-        api_url: secretNodeURL,
+        api_url: gRPCUrl,
         chain_id: chain_id,
         mnemonic: mnemonic,
         interval: 10000,

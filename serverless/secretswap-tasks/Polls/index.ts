@@ -1,6 +1,6 @@
 import { AzureFunction, Context } from "@azure/functions";
 import { whilst } from "async";
-import { SecretNetworkClient } from "secretjslatest";
+import { SecretNetworkClient } from "secretjs";
 import { Agent, Poll, Polls } from "siennajs";
 import { batchMultiCall } from "../lib/multicall";
 import { get_agent, get_scrt_client } from "../lib/client";

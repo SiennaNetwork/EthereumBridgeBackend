@@ -1,5 +1,5 @@
 import { eachOfLimit } from "async";
-import { SecretNetworkClient } from "secretjslatest";
+import { SecretNetworkClient } from "secretjs";
 
 const MULTICALL_ADDRESS = process.env["MULTICALL_ADDRESS"];
 const MULTICALL_ADDRESS_HASH = process.env["MULTICALL_ADDRESS_HASH"];

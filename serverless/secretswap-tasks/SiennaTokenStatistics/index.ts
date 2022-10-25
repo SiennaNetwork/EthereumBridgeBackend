@@ -5,7 +5,7 @@ import { whilst } from "async";
 import moment from "moment";
 import { findWhere } from "underscore";
 import Decimal from "decimal.js";
-import { SecretNetworkClient } from "secretjslatest";
+import { SecretNetworkClient } from "secretjs";
 import { LendOverseer, Agent, LendOverseerMarket, Snip20, LendMarketState, Decimal256, ContractLink } from "siennajs";
 import { batchMultiCall } from "../lib/multicall";
 import { DB } from "../lib/db";

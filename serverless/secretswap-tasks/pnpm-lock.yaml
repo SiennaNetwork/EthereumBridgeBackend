@@ -26,10 +26,9 @@ specifiers:
   mongodb: ^3.6.6
   node-fetch: ^2.6.1
   npm-run-all: ^4.1.5
-  secretjs: 0.17.5
-  secretjslatest: npm:secretjs@1.4.1
+  secretjs: 1.4.4
   secure-random: ^1.1.2
-  sienna-liquidator: github:SiennaNetwork/lend-liquidation-bot#master
+  sienna-liquidator: github:SiennaNetwork/lend-liquidation-bot#1.0.0-rc1
   siennajs: https://github.com/SiennaNetwork/siennajs/releases/download/2.1.0/siennajs-2.1.0.tgz
   typescript: ^4.7.4
   underscore: ^1.13.1
@@ -57,10 +56,9 @@ dependencies:
   mongo-sanitize: 1.1.0
   mongodb: 3.7.3
   node-fetch: 2.6.7
-  secretjs: 0.17.5
-  secretjslatest: /secretjs/1.4.1_google-protobuf@3.21.0
+  secretjs: 1.4.4_google-protobuf@3.21.0
   secure-random: 1.1.2
-  sienna-liquidator: github.com/SiennaNetwork/lend-liquidation-bot/a067afda33c708c7bc9a4f413233481fa4b498f7
+  sienna-liquidator: github.com/SiennaNetwork/lend-liquidation-bot/5886403b5550000b6e194d96185e4f89d9865d6b_google-protobuf@3.21.0
   siennajs: '@github.com/SiennaNetwork/siennajs/releases/download/2.1.0/siennajs-2.1.0.tgz_google-protobuf@3.21.0'
   underscore: 1.13.4
   yaml: 2.1.1
@@ -2196,8 +2194,8 @@ packages:
       - google-protobuf
     dev: false
 
-  /secretjs/1.4.1_google-protobuf@3.21.0:
-    resolution: {integrity: sha512-/+7GpnI7QczcpATx/REDvbvlhfIPAR06vQvclfawo7B1FSZZ6uz8qd+DhULZJJ1JMlIL419qsLtTuN222tU+ag==}
+  /secretjs/1.4.3_google-protobuf@3.21.0:
+    resolution: {integrity: sha512-IDhoPWg1Nra7ji3FU07ZHbxkp1S5uQnbLsDNj/t6Q9M9wysxv/BZafHnoEkAcB7FYYwOkxs5RxnSAZ2oiJORPw==}
     dependencies:
       '@cosmjs/encoding': 0.27.1
       '@cosmjs/math': 0.27.1
@@ -2221,8 +2219,8 @@ packages:
       - google-protobuf
     dev: false
 
-  /secretjs/1.4.3_google-protobuf@3.21.0:
-    resolution: {integrity: sha512-IDhoPWg1Nra7ji3FU07ZHbxkp1S5uQnbLsDNj/t6Q9M9wysxv/BZafHnoEkAcB7FYYwOkxs5RxnSAZ2oiJORPw==}
+  /secretjs/1.4.4_google-protobuf@3.21.0:
+    resolution: {integrity: sha512-AEQkLTgg2iijtB0rhdrqWjI9XtNYfjXg1xTv1pY86jNC42RTwzZPW0Y9Fy/9QN7PSJ9kqToK6TridFGl6zgIvw==}
     dependencies:
       '@cosmjs/encoding': 0.27.1
       '@cosmjs/math': 0.27.1
@@ -2307,15 +2305,6 @@ packages:
       get-intrinsic: 1.1.2
       object-inspect: 1.12.2
     dev: true
-
-  /siennajs/0.2.0-beta.5:
-    resolution: {integrity: sha512-kiOVEucQiWLGwFGJzqGRvM+0OK6cQFR1XkhvTWPRkENjnPHAiQQ2NuWrFgLy+fDdsj1NHliuNtcXF1WuiWd3cw==}
-    dependencies:
-      '@waiting/base64': 4.2.9
-      secretjs: 0.17.5
-    transitivePeerDependencies:
-      - debug
-    dev: false
 
   /signal-exit/3.0.7:
     resolution: {integrity: sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==}
@@ -2687,19 +2676,38 @@ packages:
       - google-protobuf
     dev: false
 
-  github.com/SiennaNetwork/lend-liquidation-bot/a067afda33c708c7bc9a4f413233481fa4b498f7:
-    resolution: {tarball: https://codeload.github.com/SiennaNetwork/lend-liquidation-bot/tar.gz/a067afda33c708c7bc9a4f413233481fa4b498f7}
+  '@github.com/SiennaNetwork/siennajs/releases/download/2.1.6/siennajs-2.1.6.tgz_google-protobuf@3.21.0':
+    resolution: {tarball: https://github.com/SiennaNetwork/siennajs/releases/download/2.1.6/siennajs-2.1.6.tgz}
+    id: '@github.com/SiennaNetwork/siennajs/releases/download/2.1.6/siennajs-2.1.6.tgz'
+    name: siennajs
+    version: 2.1.6
+    engines: {node: ^12.16 || >=13.7}
+    dependencies:
+      '@fadroma/scrt': 4.1.0_google-protobuf@3.21.0
+      '@fadroma/tokens': 5.1.6_google-protobuf@3.21.0
+      '@hackbg/formati': 5.1.1
+      '@hackbg/konzola': 2.1.0
+      crypto-js: 4.1.1
+      merkletreejs: 0.2.32
+    transitivePeerDependencies:
+      - dotenv
+      - google-protobuf
+    dev: false
+
+  github.com/SiennaNetwork/lend-liquidation-bot/5886403b5550000b6e194d96185e4f89d9865d6b_google-protobuf@3.21.0:
+    resolution: {tarball: https://codeload.github.com/SiennaNetwork/lend-liquidation-bot/tar.gz/5886403b5550000b6e194d96185e4f89d9865d6b}
+    id: github.com/SiennaNetwork/lend-liquidation-bot/5886403b5550000b6e194d96185e4f89d9865d6b
     name: sienna-liquidator
     version: 1.0.0
     dependencies:
       bignumber.js: 9.1.0
       node-fetch: 2.6.7
-      secretjs: 0.17.5
-      siennajs: 0.2.0-beta.5
+      siennajs: '@github.com/SiennaNetwork/siennajs/releases/download/2.1.6/siennajs-2.1.6.tgz_google-protobuf@3.21.0'
       yaml: 2.1.1
     transitivePeerDependencies:
-      - debug
+      - dotenv
       - encoding
+      - google-protobuf
     dev: false
 
   github.com/slavaGanzin/prettyjson/d880b8af2973a1a1b277944c3b573d7d6a93ba8f:
