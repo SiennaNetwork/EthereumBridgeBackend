@@ -28,7 +28,7 @@ specifiers:
   npm-run-all: ^4.1.5
   secretjs: 1.4.4
   secure-random: ^1.1.2
-  sienna-liquidator: github:SiennaNetwork/lend-liquidation-bot#1.0.0-rc3
+  sienna-liquidator: github:SiennaNetwork/lend-liquidation-bot#1.0.0-rc4
   siennajs: https://github.com/SiennaNetwork/siennajs/releases/download/2.1.0/siennajs-2.1.0.tgz
   typescript: ^4.7.4
   underscore: ^1.13.1
@@ -58,7 +58,7 @@ dependencies:
   node-fetch: 2.6.7
   secretjs: 1.4.4_google-protobuf@3.21.0
   secure-random: 1.1.2
-  sienna-liquidator: github.com/SiennaNetwork/lend-liquidation-bot/741f9745164e7bbce18714041cdde4aac1f34f8b_google-protobuf@3.21.0
+  sienna-liquidator: github.com/SiennaNetwork/lend-liquidation-bot/3b8594f18486961d31164c468f15095d6e8daa86_google-protobuf@3.21.0
   siennajs: '@github.com/SiennaNetwork/siennajs/releases/download/2.1.0/siennajs-2.1.0.tgz_google-protobuf@3.21.0'
   underscore: 1.13.4
   yaml: 2.1.1
@@ -2694,9 +2694,9 @@ packages:
       - google-protobuf
     dev: false
 
-  github.com/SiennaNetwork/lend-liquidation-bot/741f9745164e7bbce18714041cdde4aac1f34f8b_google-protobuf@3.21.0:
-    resolution: {tarball: https://codeload.github.com/SiennaNetwork/lend-liquidation-bot/tar.gz/741f9745164e7bbce18714041cdde4aac1f34f8b}
-    id: github.com/SiennaNetwork/lend-liquidation-bot/741f9745164e7bbce18714041cdde4aac1f34f8b
+  github.com/SiennaNetwork/lend-liquidation-bot/3b8594f18486961d31164c468f15095d6e8daa86_google-protobuf@3.21.0:
+    resolution: {tarball: https://codeload.github.com/SiennaNetwork/lend-liquidation-bot/tar.gz/3b8594f18486961d31164c468f15095d6e8daa86}
+    id: github.com/SiennaNetwork/lend-liquidation-bot/3b8594f18486961d31164c468f15095d6e8daa86
     name: sienna-liquidator
     version: 1.0.0
     dependencies:

@@ -6,6 +6,7 @@ import { DB } from "../lib/db";
 
 const gRPCUrl = process.env["gRPCUrl"];
 const OVERSEER_ADDRESS = process.env["OVERSEER_ADDRESS"];
+const OVERSEER_ADDRESS_CODE_HASH = process.env["OVERSEER_ADDRESS_CODE_HASH"];
 const BAND_REST_URL = process.env["BAND_REST_URL"];
 const mnemonic = process.env["liquidation_mnemonic"];
 const chain_id = process.env["CHAINID"] || "pulsar-2";
@@ -23,7 +24,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     const marketConfig: MarketConfig[] = lendData.pop().data.map(market => ({
         address: market.market,
-        underlying_vk: lendVK[market.market]
+        underlying_vk: lendVK[market.market],
+        code_hash: market.market_code_hash
     })).filter(mk => !!mk.underlying_vk);
 
     const config: Config = {
@@ -33,7 +35,10 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         chain_id: chain_id,
         mnemonic: mnemonic,
         interval: 10000,
-        overseer: OVERSEER_ADDRESS
+        overseer: {
+            address: OVERSEER_ADDRESS,
+            code_hash: OVERSEER_ADDRESS_CODE_HASH
+        }
     };
     const logs = [];
     console.log = function () {
