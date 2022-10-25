@@ -8,7 +8,7 @@ import SecureRandom from "secure-random";
 import { get_agent, get_scrt_client } from "../lib/client";
 import { DB } from "../lib/db";
 import { Db } from "mongodb";
-import { SecretNetworkClient } from "secretjslatest";
+import { SecretNetworkClient } from "secretjs";
 
 const backendURL = process.env["backendURL"];
 

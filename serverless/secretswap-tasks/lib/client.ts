@@ -1,4 +1,4 @@
-import { SecretNetworkClient, Wallet } from "secretjslatest";
+import { SecretNetworkClient, Wallet } from "secretjs";
 import { Agent, ChainMode, ScrtGrpc } from "siennajs";
 
 const gRPCUrl = process.env["gRPCUrl"];
