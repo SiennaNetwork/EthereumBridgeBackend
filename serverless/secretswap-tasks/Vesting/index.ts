@@ -101,21 +101,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             }
             logs.push("Successfully vested main RPT");
 
-            if (process.env["CHAINID"] === "secret-4") for (const rpt of RPTcontracts) {
-                try {
-                    logs.push(`Calling vest on ${rpt} with fees ${JSON.stringify(vest_fee_gas_2)}`);
-                    await scrt_client.tx.compute.executeContract({
-                        contractAddress: rpt,
-                        codeHash: RPTcontractsHash,
-                        sender: sender_address,
-                        msg: { vest: {} }
-                    }, { broadcastCheckIntervalMs: 10_000, gasLimit: vest_fee_gas_2, broadcastTimeoutMs: 240_000 });
-                    logs.push(`Successfully vested RPT ${rpt}`);
-                } catch (e) {
-                    logs.push(`Vesting ${rpt} Error: ${e.toString()}`);
-                }
-            }
-
             vest_success = true;
             //vest was successful, stop calling
             call = false;
@@ -152,6 +137,22 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             }
         }
     }
+
+    if (process.env["CHAINID"] === "secret-4") for (const rpt of RPTcontracts) {
+        try {
+            logs.push(`Calling vest on ${rpt} with fees ${JSON.stringify(vest_fee_gas_2)}`);
+            await scrt_client.tx.compute.executeContract({
+                contractAddress: rpt,
+                codeHash: RPTcontractsHash,
+                sender: sender_address,
+                msg: { vest: {} }
+            }, { broadcastCheckIntervalMs: 10_000, gasLimit: vest_fee_gas_2, broadcastTimeoutMs: 240_000 });
+            logs.push(`Successfully vested RPT ${rpt}`);
+        } catch (e) {
+            logs.push(`Vesting ${rpt} Error: ${e.toString()}`);
+        }
+    }
+
     if (vest_success) {
         await new Promise((resolve) => {
             eachLimit(poolsV3, 1, async (p, cb) => {
