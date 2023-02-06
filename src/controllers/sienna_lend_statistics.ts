@@ -275,7 +275,7 @@ export const getHistoricalData = async (req: Request, res: Response) => {
         {
             $group: {
                 _id: "$date",
-                data: { $push: "$" }
+                data: { $push: "$$ROOT" }
             }
         },
         {
