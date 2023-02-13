@@ -38,11 +38,3 @@ jobs:
         slot-name: Production
         publish-profile: ${{ secrets.ETHEREUMBRIDGEBACKEND_TESTNET }}
         package: .
-
-    - name: ETHEREUMBRIDGEBACKEND_DEV
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: EthereumBridgeBackendDevelopment
-        slot-name: Production
-        publish-profile: ${{ secrets.ETHEREUMBRIDGEBACKEND_DEV }}
-        package: .
