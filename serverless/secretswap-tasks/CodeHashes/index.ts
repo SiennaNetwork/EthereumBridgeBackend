@@ -1,6 +1,6 @@
 import { AzureFunction, Context } from "@azure/functions";
-import { Agent } from "siennajs";
-import { get_agent } from "../lib/client";
+import { SecretNetworkClient } from "secretjs";
+import { get_scrt_client } from "../lib/client";
 import { DB } from "../lib/db";
 
 
@@ -8,7 +8,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const mongo_client = new DB();
     const db = await mongo_client.connect();
 
-    const agent = await get_agent();
+    const agent = await get_scrt_client();
 
     //rewards
     const rewards: any[] = await db.collection("rewards_data").find({
@@ -132,8 +132,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 };
 
 
-async function getHash(agent: Agent, address: string): Promise<string> {
-    return agent.getHash(address);
+async function getHash(agent: SecretNetworkClient, address: string): Promise<string> {
+    return (await agent.query.compute.codeHashByContractAddress({ contract_address: address })).code_hash;
 }
 
 export default timerTrigger;

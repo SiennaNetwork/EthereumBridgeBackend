@@ -6,8 +6,9 @@ import { eachLimit } from "async";
 import sanitize from "mongo-sanitize";
 import { Agent, AMMExchange, TokenAmount } from "siennajs";
 import { DB } from "../lib/db";
-import { get_agent, get_scrt_client } from "../lib/client";
+import { get_scrt_client } from "../lib/client";
 import { batchMultiCall } from "../lib/multicall";
+import { SecretNetworkClient } from "secretjs";
 
 const coinGeckoUrl = "https://api.coingecko.com/api/v3/simple/price?";
 
@@ -24,7 +25,7 @@ async function CoinGeckoBulk(symbols: string[]) {
     })).data;
 }
 
-async function PriceFromPool(agent: Agent, _id, db) {
+async function PriceFromPool(client: SecretNetworkClient, _id, db) {
     const token = await db.collection("token_pairing").findOne({ _id: sanitize(_id) });
     if (!token) return "NaN";
 
@@ -48,15 +49,21 @@ async function PriceFromPool(agent: Agent, _id, db) {
     }
     if (!pair) return "NaN";
 
-    const exchange = new AMMExchange(agent, pair.contract_addr, pair.contract_addr_code_hash);
-
     try {
-        const result = await exchange.simulateSwap(new TokenAmount({
-            custom_token: {
-                contract_addr: token.dst_address,
-                token_code_hash: token.dst_address_code_hash
+        const result: any = await client.query.compute.queryContract({
+            contract_address: pair.contract_addr,
+            code_hash: pair.contract_addr_code_hash,
+            query: {
+                swap_simulation: {
+                    offer: new TokenAmount({
+                        custom_token: {
+                            contract_addr: token.dst_address,
+                            token_code_hash: token.dst_address_code_hash
+                        }
+                    }, Decimal.pow(10, token.decimals).toString())
+                }
             }
-        }, Decimal.pow(10, token.decimals).toString()));
+        });
         return Decimal.mul(comparisonToken.price, Decimal.div(result.return_amount, Decimal.pow(10, comparisonToken.decimals))).toFixed(4);
     } catch (e) {
         return "NaN";
@@ -69,7 +76,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const mongo_client = new DB();
     const db = await mongo_client.connect();
 
-    const agent = await get_agent();
     const scrt_client = await get_scrt_client();
 
     const tokens = await db.collection("token_pairing").find({}).limit(1000).toArray().catch(
@@ -117,7 +123,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     await new Promise((resolve) => {
         eachLimit(non_coingecko_tokens, 2, async (token, cb) => {
-            const price = await PriceFromPool(agent, token._id, db);
+            const price = await PriceFromPool(scrt_client, token._id, db);
             await db.collection("token_pairing")
                 .updateOne({ _id: token._id }, {
                     $set: {

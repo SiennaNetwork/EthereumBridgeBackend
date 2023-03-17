@@ -1,7 +1,6 @@
 import { AzureFunction, Context } from "@azure/functions";
 import Decimal from "decimal.js";
 import { batchMultiCall } from "../lib/multicall";
-import { Rewards_v2_Pool, Rewards_v3_Total } from "siennajs";
 import { get_scrt_client } from "../lib/client";
 import { DB } from "../lib/db";
 
@@ -48,13 +47,13 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             switch (pool.version) {
                 case "1":
                 case "2":
-                    total_locked = (multi_result[index] as { pool_info: Rewards_v2_Pool }).pool_info.pool_locked.toString();
+                    total_locked = (multi_result[index] as any).pool_info.pool_locked.toString();
                     break;
                 case "3":
                 case "3.1":
                 case "4.1":
                 case "4.2":
-                    total_locked = (multi_result[index] as { rewards: { pool_info: Rewards_v3_Total } }).rewards.pool_info.staked.toString();
+                    total_locked = (multi_result[index] as any).rewards.pool_info.staked.toString();
                     break;
             }
 

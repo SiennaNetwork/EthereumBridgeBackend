@@ -2,10 +2,8 @@ import { AzureFunction, Context } from "@azure/functions";
 import { MerkleTree } from "merkletreejs";
 import sha256 from "crypto-js/sha256";
 import axios from "axios";
-import { Launchpad, ContractLink, IDO, Agent, Client } from "siennajs";
-
 import SecureRandom from "secure-random";
-import { get_agent, get_scrt_client } from "../lib/client";
+import { get_scrt_client } from "../lib/client";
 import { DB } from "../lib/db";
 import { Db } from "mongodb";
 import { SecretNetworkClient } from "secretjs";
@@ -15,16 +13,25 @@ const backendURL = process.env["backendURL"];
 const LAUNCHPAD_ADDRESS = process.env["LAUNCHPAD_ADDRESS"];
 const LAUNCHPAD_CODE_HASH = process.env["LAUNCHPAD_CODE_HASH"];
 
-async function getIDOs(launchPad: Launchpad): Promise<ContractLink[]> {
+const sender_address = process.env["sender_address"];
 
+async function getIDOs(client: SecretNetworkClient) {
     const limit = 10;
     let start = 0;
-    const result = await launchPad.getIdos(start, limit);
+    const result: any = await client.query.compute.queryContract({
+        contract_address: LAUNCHPAD_ADDRESS,
+        code_hash: LAUNCHPAD_CODE_HASH,
+        query: { idos: { pagination: { start, limit } } }
+    })
     start += limit;
-    let idos: ContractLink[] = result.entries;
+    let idos: any[] = result.entries;
     while (result.total > idos.length) {
-        const res = await launchPad.getIdos(start, limit);
-        idos = idos.concat(res.entries);
+        const res: any = await client.query.compute.queryContract({
+            contract_address: LAUNCHPAD_ADDRESS,
+            code_hash: LAUNCHPAD_CODE_HASH,
+            query: { idos: { pagination: { start, limit } } }
+        })
+        idos = idos.concat(res.entires);
         start += limit;
     }
     return idos;
@@ -36,26 +43,25 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const db = await mongo_client.connect();
 
     const scrt_client = await get_scrt_client();
-    const agent = await get_agent();
 
 
     //update projects
     const projects = await db.collection("projects").find({ created: true }).toArray();
 
-    await updateProjects(projects, agent, db);
+    await updateProjects(projects, scrt_client, db);
 
     context.log(`Updated ${projects.length} projects`);
 
     //get projects that need to be instantiated
     const project = await db.collection("projects").findOne({ approved: true, created: false, failed: false });
-    if (project) await instantiateProject(project, agent, scrt_client, db);
+    if (project) await instantiateProject(project, scrt_client, db);
 
     await mongo_client.disconnect();
 };
 
 
-const instantiateProject = async function (project: any, agent: Agent, scrt_client: SecretNetworkClient, db: Db) {
-    const launchPad: Launchpad = new Launchpad(agent, LAUNCHPAD_ADDRESS, LAUNCHPAD_CODE_HASH);
+const instantiateProject = async function (project: any, client: SecretNetworkClient, db: Db) {
+    //const launchPad: Launchpad = new Launchpad(agent, LAUNCHPAD_ADDRESS, LAUNCHPAD_CODE_HASH);
     const leaves = project.addresses;
     const tree = new MerkleTree(leaves, sha256);
     let projectToken;
@@ -110,20 +116,42 @@ const instantiateProject = async function (project: any, agent: Agent, scrt_clie
         admin: project.adminAddress
     };
     const entropy = SecureRandom.randomBuffer(32).toString("base64");
-    const result: any = await launchPad.launch(project_settings, entropy);
+    const result: any = await client.tx.compute.executeContract({
+        sender: sender_address,
+        contract_address: LAUNCHPAD_ADDRESS,
+        code_hash: LAUNCHPAD_CODE_HASH,
+        msg: {
+            launch: {
+                settings: project_settings,
+                entropy
+            }
+        }
+    });
 
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
-    const transaction = (await scrt_client.query.txsQuery(`tx.hash='${result.transactionHash}'`))[0];
+    const transaction = (await client.query.txsQuery(`tx.hash='${result.transactionHash}'`))[0];
 
     if (transaction && transaction.code === 0) {
-        const idos = await getIDOs(launchPad);
+        const idos = await getIDOs(client);
         const ido = idos.pop();
-        const client = new Client(agent, project.projectToken.address, project.projectToken.code_hash);
-        const token_info: any = await agent.query(client, { token_info: {} });
-        const project_IDO = new IDO(agent, ido.address, ido.code_hash);
-        const sale_status = await project_IDO.saleStatus();
-        const sale_info: any = await project_IDO.saleInfo();
+        const token_info: any = (await client.query.compute.queryContract({
+            contract_address: project.projectToken.address,
+            code_hash: project.projectToken.code_hash,
+            query: { token_info: {} }
+        }) as any).token_info;
+
+        const sale_status: any = await client.query.compute.queryContract({
+            contract_address: project.contractAddress,
+            code_hash: project.contractAddressCodeHash,
+            query: { sale_status: {} }
+        })
+        const sale_info: any = await client.query.compute.queryContract({
+            contract_address: project.contractAddress,
+            code_hash: project.contractAddressCodeHash,
+            query: { sale_info: {} }
+        })
+
 
         const updateObject = {
             created: true,
@@ -157,15 +185,23 @@ const instantiateProject = async function (project: any, agent: Agent, scrt_clie
     }
 };
 
-
-const updateProjects = async function (projects: any[], agent: Agent, db: Db) {
+const updateProjects = async function (projects: any[], client: SecretNetworkClient, db: Db) {
     return Promise.all(projects.map(async (p) => {
-        const project_IDO = new IDO(agent, p.contractAddress, p.contractAddressCodeHash);
-        const sale_status = await project_IDO.saleStatus();
-        const sale_info = await project_IDO.saleInfo();
-
-        const client = new Client(agent, p.projectToken.address, p.projectToken.code_hash);
-        const token_info_result: any = await agent.query(client, { token_info: {} });
+        const sale_status: any = await client.query.compute.queryContract({
+            contract_address: p.contractAddress,
+            code_hash: p.contractAddressCodeHash,
+            query: { sale_status: {} }
+        })
+        const sale_info: any = await client.query.compute.queryContract({
+            contract_address: p.contractAddress,
+            code_hash: p.contractAddressCodeHash,
+            query: { sale_info: {} }
+        })
+        const token_info_result: any = (await client.query.compute.queryContract({
+            contract_address: p.projectToken.address,
+            code_hash: p.projectToken.code_hash,
+            query: { token_info: {} }
+        }) as any).token_info;
 
         const updateObj = {
             minAllocation: sale_info.sale_config.min_allocation,

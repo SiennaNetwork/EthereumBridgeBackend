@@ -2,10 +2,10 @@ import { AzureFunction, Context } from "@azure/functions";
 import { whilst, eachOfLimit } from "async";
 import Decimal from "decimal.js";
 import axios from "axios";
-import { LendOverseer, Agent, LendOverseerMarket, LendMarketState, Decimal256, ContractLink } from "siennajs";
 import { batchMultiCall } from "../lib/multicall";
 import { DB } from "../lib/db";
-import { get_agent, get_scrt_client } from "../lib/client";
+import { get_scrt_client } from "../lib/client";
+import { SecretNetworkClient } from "secretjs";
 
 const OVERSEER_ADDRESS = process.env["OVERSEER_ADDRESS"];
 const OVERSEER_ADDRESS_CODE_HASH = process.env["OVERSEER_ADDRESS_CODE_HASH"];
@@ -13,27 +13,31 @@ const BAND_REST_URL = process.env["BAND_REST_URL"];
 
 
 
-const LendMarkets = async (agent: Agent): Promise<LendOverseerMarket[]> => {
-    return new Promise((resolve) => {
-        const overseer = new LendOverseer(agent, OVERSEER_ADDRESS, OVERSEER_ADDRESS_CODE_HASH);
-        let call = true, start = 0, contracts = [];
-        whilst(
-            (callback) => callback(null, call),
-            async (callback) => {
-                const result = await overseer.getMarkets({ start, limit: 10 });
-                if (!result || !result.entries || !result.entries.length) {
-                    call = false;
-                    return callback();
+const LendMarkets = async (client: SecretNetworkClient) => {
+    if (!OVERSEER_ADDRESS) return [];
+    let markets = [], grabMarkets = true, start = 0;
+
+    while (grabMarkets) {
+        const result: any = await client.query.compute.queryContract({
+            contract_address: OVERSEER_ADDRESS,
+            code_hash: OVERSEER_ADDRESS_CODE_HASH,
+            query: {
+                markets: {
+                    pagination: {
+                        limit: 10,
+                        start: start
+                    }
                 }
-                start += result.entries.length;
-                contracts = contracts.concat(result.entries);
-                callback();
-            }, () => {
-                return resolve(contracts);
             }
-        );
-    });
-};
+        });
+        if (result && result.entries && result.entries.length) {
+            markets = markets.concat(result.entries);
+            start = markets.length;
+        } else grabMarkets = false;
+    }
+
+    return markets;
+}
 
 const BandTokenPrice = async (symbol) => {
     try {
@@ -47,12 +51,11 @@ const BandTokenPrice = async (symbol) => {
 
 const LendData = async (tokens, rewards) => {
     const results = [];
-    const agent = await get_agent();
 
     const scrt_client = await get_scrt_client();
 
-    const markets = await LendMarkets(agent);
-    const block = await agent.height;
+    const markets = await LendMarkets(scrt_client);
+    const block = parseInt((await scrt_client.query.tendermint.getLatestBlock({})).block.header.height.toString());
 
     const calls = markets.map((market) => {
         return [
@@ -74,8 +77,8 @@ const LendData = async (tokens, rewards) => {
         eachOfLimit(markets, 3, async (market, index: number, callback) => {
             const multi_index = index * 5;
             try {
-                const underlying_asset = multi_result[multi_index] as ContractLink;
-                const exchange_rate = multi_result[multi_index + 1] as Decimal256;
+                const underlying_asset = multi_result[multi_index] as any;
+                const exchange_rate = multi_result[multi_index + 1] as any;
 
                 const token = tokens.find(t => t.dst_address === underlying_asset.address);
 
@@ -83,10 +86,10 @@ const LendData = async (tokens, rewards) => {
 
                 const token_price = band_token_price ? band_token_price : token.price;
 
-                const borrow_rate = new Decimal(multi_result[multi_index + 2] as Decimal256).toNumber();
+                const borrow_rate = new Decimal(multi_result[multi_index + 2] as any).toNumber();
                 const borrow_rate_usd = new Decimal(borrow_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
 
-                const supply_rate = new Decimal(multi_result[multi_index + 3] as Decimal256).toNumber();
+                const supply_rate = new Decimal(multi_result[multi_index + 3] as any).toNumber();
                 const supply_rate_usd = new Decimal(supply_rate).div(new Decimal(10).pow(token.decimals).toNumber()).mul(token_price).toDecimalPlaces(2).toNumber();
 
                 const supply_rate_day = new Decimal(86400).div(6).mul(supply_rate).toNumber();
@@ -95,7 +98,7 @@ const LendData = async (tokens, rewards) => {
                 const borrow_rate_day = new Decimal(86400).div(6).mul(borrow_rate).toNumber();
                 const borrow_APY = new Decimal(borrow_rate_day).add(1).pow(365).minus(1).toDecimalPlaces(2).toNumber();
 
-                const state = multi_result[multi_index + 4] as LendMarketState;
+                const state = multi_result[multi_index + 4] as any;
 
                 const reward = rewards.find(r => r.lp_token_address === market.contract.address);
                 let rewards_APR = 0;

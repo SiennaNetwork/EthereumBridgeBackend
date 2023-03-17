@@ -9,7 +9,7 @@ import { SecretNetworkClient } from "secretjs";
 import { LendOverseer, Agent, LendOverseerMarket, Snip20, LendMarketState, Decimal256, ContractLink } from "siennajs";
 import { batchMultiCall } from "../lib/multicall";
 import { DB } from "../lib/db";
-import { get_agent, get_scrt_client } from "../lib/client";
+import { get_scrt_client } from "../lib/client";
 
 
 const tokensLockedByTeam = process.env["tokens_locked_by_team"] && !isNaN(parseFloat(process.env["tokens_locked_by_team"])) ? new Decimal(process.env["tokens_locked_by_team"]).toNumber() : 0;
@@ -17,55 +17,67 @@ const tokensLockedByTeam = process.env["tokens_locked_by_team"] && !isNaN(parseF
 const OVERSEER_ADDRESS = process.env["OVERSEER_ADDRESS"];
 const OVERSEER_ADDRESS_CODE_HASH = process.env["OVERSEER_ADDRESS_CODE_HASH"];
 
-const LendMarkets = async (agent: Agent): Promise<LendOverseerMarket[]> => {
-    return new Promise((resolve) => {
-        const overseer = new LendOverseer(agent, OVERSEER_ADDRESS, OVERSEER_ADDRESS_CODE_HASH);
-        let call = true, start = 0, contracts = [];
-        whilst(
-            (callback) => callback(null, call),
-            async (callback) => {
-                const result = await overseer.getMarkets({ start, limit: 10 });
-                if (!result || !result.entries || !result.entries.length) {
-                    call = false;
-                    return callback();
+
+
+const LendMarkets = async (client: SecretNetworkClient) => {
+    if (!OVERSEER_ADDRESS) return [];
+    let markets = [], grabMarkets = true, start = 0;
+
+    while (grabMarkets) {
+        const result: any = await client.query.compute.queryContract({
+            contract_address: OVERSEER_ADDRESS,
+            code_hash: OVERSEER_ADDRESS_CODE_HASH,
+            query: {
+                markets: {
+                    pagination: {
+                        limit: 10,
+                        start: start
+                    }
                 }
-                start += result.entries.length;
-                contracts = contracts.concat(result.entries);
-                callback();
-            }, () => {
-                return resolve(contracts);
             }
-        );
-    });
-};
+        });
+        if (result && result.entries && result.entries.length) {
+            markets = markets.concat(result.entries);
+            start = markets.length;
+        } else grabMarkets = false;
+    }
 
-async function LendTVL(scrt_client: SecretNetworkClient, agent: Agent, tokens) {
-    const markets = await LendMarkets(agent);
-    const block = await agent.height;
+    return markets;
+}
 
-    const calls = markets.map((market) => {
-        return [
-            { query: { state: { block } } },
-            { query: { exchange_rate: { block } } },
-            { query: { underlying_asset: {} } }
-        ].map(c => ({
+async function LendTVL(client: SecretNetworkClient, tokens) {
+    const markets = await LendMarkets(client);
+    const block = parseInt((await client.query.tendermint.getLatestBlock({})).block.header.height.toString());
+    return (await Promise.all(markets.map(async (market) => {
+        const marketState: any = await client.query.compute.queryContract({
             contract_address: market.contract.address,
             code_hash: market.contract.code_hash,
-            query: c.query
-        }));
-
-    }).flat();
-
-    const multi_result = await batchMultiCall(scrt_client, calls);
-    return markets.map((market, index) => {
-        const i = index * 3; // market index * number of calls per market
-        const marketState = multi_result[i] as LendMarketState;
-        const exchange_rate = multi_result[i + 1] as Decimal256;
-        const underlying_asset = multi_result[i + 2] as ContractLink;
+            query: {
+                state: {
+                    block
+                }
+            }
+        });
+        const exchange_rate: any = await client.query.compute.queryContract({
+            contract_address: market.contract.address,
+            code_hash: market.contract.code_hash,
+            query: {
+                exchange_rate: {
+                    block
+                }
+            }
+        });
+        const underlying_asset: any = await client.query.compute.queryContract({
+            contract_address: market.contract.address,
+            code_hash: market.contract.code_hash,
+            query: { underlying_asset: {} }
+        })
         const lend_token = tokens.find(t => t.dst_address === underlying_asset.address);
         return new Decimal(marketState.total_supply).mul(exchange_rate).div(new Decimal(10).pow(lend_token.decimals)).mul(lend_token.price).toNumber();
-    }).reduce((prev, value) => new Decimal(prev).add(value).toNumber(), 0);
+    }))).reduce((prev, value) => new Decimal(prev).add(value).toNumber(), 0);
 }
+
+
 
 async function PairsLiquidity(pools, tokens) {
     return pools.reduce((prev, pool) => {
@@ -91,7 +103,6 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const db = await mongo_client.connect();
 
     const scrt_client = await get_scrt_client();
-    const agent = await get_agent();
 
     const token: any = await db.collection("token_pairing").findOne({ name: "SIENNA", "display_props.symbol": "SIENNA" }).catch(
         (err: any) => {
@@ -100,9 +111,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         });
     if (!token) return context.log("SIENNA TOKEN NOT FOUND");
 
-    const snip20Contract = new Snip20(agent, token.dst_address, token.dst_address_code_hash);
-
-    const token_info = await snip20Contract.getTokenInfo();
+    const token_info: any = (await scrt_client.query.compute.queryContract({ contract_address: token.dst_address, code_hash: token.dst_address_code_hash, query: { token_info: {} } }) as any).token_info;
 
     const fixedValue = findWhere(schedule, { date: moment().format("MM/DD/YYYY") });
     if (!fixedValue) return context.log(`Fixed value could not be found for date: ${moment().format("MM/DD/YYYY")}`);
@@ -139,7 +148,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         return new Decimal(prev).add(poolUSD).toNumber();
     }, 0);
 
-    const lend_supplied = await LendTVL(scrt_client, agent, tokens);
+    const lend_supplied = await LendTVL(scrt_client, tokens);
 
     const pool_liquidity = await PairsLiquidity(pools, tokens);
 
