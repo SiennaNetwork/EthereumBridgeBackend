@@ -1,9 +1,9 @@
 import { AzureFunction, Context } from "@azure/functions";
 import Decimal from "decimal.js";
 import { eachLimit } from "async";
-import { Agent, Snip20 } from "siennajs";
-import { get_agent } from "../lib/client";
+import { get_scrt_client } from "../lib/client";
 import { DB } from "../lib/db";
+import { SecretNetworkClient } from "secretjs";
 
 
 function getPair(pairs: any[], token1_addr: string, token2_addr: string) {
@@ -23,10 +23,13 @@ function getToken(tokens: any[], address: string) {
 function getAsset(assets: any[], address) {
     return assets.find(a => a.info.token.contract_addr.toLowerCase().includes(address.toLowerCase()));
 }
-const getLPPrice = async (agent: Agent, secret_token: any, tokens: any[], pairs: any[], pools: any[]): Promise<string> => {
+const getLPPrice = async (client: SecretNetworkClient, secret_token: any, tokens: any[], pairs: any[], pools: any[]): Promise<string> => {
     try {
-        const snip20Contract = new Snip20(agent, secret_token.address, secret_token.address_code_hash);
-        const token_info = await snip20Contract.getTokenInfo();
+        const token_info = (await client.query.compute.queryContract({
+            contract_address: secret_token.address,
+            code_hash: secret_token.address_code_hash,
+            query: { token_info: {} }
+        }) as any).token_info;
 
         const addresses = token_info.name.split("SiennaSwap Liquidity Provider (LP) token for ")[1];
 
@@ -88,8 +91,8 @@ const getSLPrice = async (LPToken, lend_data) => {
     return new Decimal(market.token_price).mul(market.exchange_rate).toFixed(4);
 };
 
-const getPrice = async (agent: Agent, poolToken, tokens, secret_tokens, pairs, pools, lend_data) => {
-    if (poolToken.symbol.indexOf("LP-") === 0) return getLPPrice(agent, poolToken, tokens, pairs, pools);
+const getPrice = async (client: SecretNetworkClient, poolToken, tokens, secret_tokens, pairs, pools, lend_data) => {
+    if (poolToken.symbol.indexOf("LP-") === 0) return getLPPrice(client, poolToken, tokens, pairs, pools);
     if (poolToken.symbol.indexOf("sl-") === 0) return getSLPrice(poolToken, lend_data);
     let token;
 
@@ -107,7 +110,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const mongo_client = new DB();
     const db = await mongo_client.connect();
 
-    const agent = await get_agent();
+    const client = await get_scrt_client();
 
 
     const tokens = await db.collection("token_pairing").find({}).limit(1000).toArray().catch(
@@ -141,7 +144,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     await new Promise((resolve) => {
         eachLimit(secret_tokens, 3, async (secret_token, cb): Promise<void> => {
-            const price = await getLPPrice(agent, secret_token, tokens, pairs, pools);
+            const price = await getLPPrice(client, secret_token, tokens, pairs, pools);
             await db.collection("secret_tokens").updateOne({ "_id": secret_token._id }, {
                 $set: { price }
             });
@@ -162,8 +165,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     await new Promise((resolve) => {
         eachLimit(rewards, 3, async (reward, cb): Promise<void> => {
-            const incPrice = await getPrice(agent, reward.inc_token, tokens, secret_tokens, pairs, pools, lend_data);
-            const rewardPrice = await getPrice(agent, reward.rewards_token, tokens, secret_tokens, pairs, pools, lend_data);
+            const incPrice = await getPrice(client, reward.inc_token, tokens, secret_tokens, pairs, pools, lend_data);
+            const rewardPrice = await getPrice(client, reward.rewards_token, tokens, secret_tokens, pairs, pools, lend_data);
 
             await db.collection("rewards_data").updateOne({
                 "lp_token_address": reward.lp_token_address,

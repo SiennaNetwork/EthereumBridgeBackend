@@ -25,8 +25,8 @@ async function multiCall(client: SecretNetworkClient, contracts: MultiCallContra
     }));
     return (
         await client.query.compute.queryContract({
-            contractAddress: MULTICALL_ADDRESS,
-            codeHash: MULTICALL_ADDRESS_HASH,
+            contract_address: MULTICALL_ADDRESS,
+            code_hash: MULTICALL_ADDRESS_HASH,
             query: { batch_query: { queries } },
         }) as any
     ).map((x) => {

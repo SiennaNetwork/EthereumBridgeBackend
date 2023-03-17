@@ -33,8 +33,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     const checkIfVested = async (pair: RPTMGMTPair): Promise<boolean> => {
         const status: any = await scrt_client.query.compute.queryContract({
-            codeHash: pair.MGMT_HASH,
-            contractAddress: pair.MGMT,
+            code_hash: pair.MGMT_HASH,
+            contract_address: pair.MGMT,
             query: {
                 progress: {
                     address: pair.RPT,
@@ -97,8 +97,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 try {
                     logs.push(`Calling with fees ${JSON.stringify(vesting_fee_gas)}`);
                     vest_result = await scrt_client.tx.compute.executeContract({
-                        codeHash: pair.RPT_HASH,
-                        contractAddress: pair.RPT,
+                        code_hash: pair.RPT_HASH,
+                        contract_address: pair.RPT,
                         sender: sender_address,
                         msg: { vest: {} }
                     }, { broadcastCheckIntervalMs: 10_000, gasLimit: vesting_fee_gas, broadcastTimeoutMs: 240_000 });
@@ -160,8 +160,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     eachLimit(poolsV3, 1, async (p, cbPool) => {
                         const next_epoch_should_be = moment().diff(moment(p.created), "days");
                         const pool_info: any = await scrt_client.query.compute.queryContract({
-                            codeHash: p.rewards_contract_hash,
-                            contractAddress: p.rewards_contract,
+                            code_hash: p.rewards_contract_hash,
+                            contract_address: p.rewards_contract,
                             query: { rewards: { pool_info: { at: new Date().getTime() } } }
                         });
                         let next_epoch_is = pool_info.rewards.pool_info.clock.number;
@@ -172,8 +172,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                             async (callback) => {
                                 try {
                                     const result = await scrt_client.tx.compute.executeContract({
-                                        codeHash: p.rewards_contract_hash,
-                                        contractAddress: p.rewards_contract,
+                                        code_hash: p.rewards_contract_hash,
+                                        contract_address: p.rewards_contract,
                                         sender: sender_address,
                                         msg: {
                                             rewards: {
@@ -193,8 +193,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                                     await wait(20000);
                                     //check if the call went through even though it threw an error
                                     const pool_info: any = await scrt_client.query.compute.queryContract({
-                                        codeHash: p.rewards_contract_hash,
-                                        contractAddress: p.rewards_contract,
+                                        code_hash: p.rewards_contract_hash,
+                                        contract_address: p.rewards_contract,
                                         query: { rewards: { pool_info: { at: new Date().getTime() } } }
                                     });
                                     if (pool_info.rewards.pool_info.clock.number === next_epoch_is + 1) {

@@ -60,7 +60,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     const checkIfVested = async (): Promise<boolean> => {
         const status: any = await scrt_client.query.compute.queryContract({
-            contractAddress: MGMTContractAddress, query: {
+            contract_address: MGMTContractAddress,
+            query: {
                 progress: {
                     address: RPTContractAddress,
                     time: Math.floor(Date.now() / 1000)
@@ -85,11 +86,12 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             logs.push(`Calling with fees ${JSON.stringify(vesting_fee_gas)}`);
 
             vest_result = await scrt_client.tx.compute.executeContract({
-                contractAddress: RPTContractAddress,
+                contract_address: RPTContractAddress,
                 sender: sender_address,
                 msg: { vest: {} }
             }, { broadcastCheckIntervalMs: 10_000, gasLimit: vesting_fee_gas, broadcastTimeoutMs: 240_000 });
             //wait 5s
+            context.log(vest_result)
             await wait(5000);
 
             //check if RPT was vested
@@ -105,6 +107,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             //vest was successful, stop calling
             call = false;
         } catch (e) {
+            context.log("vest_errrrrrrrrrrr")
             context.log(e);
             vest_error = e;
             //check if RPT was already vested so we don't increment the clocks
@@ -142,8 +145,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         try {
             logs.push(`Calling vest on ${rpt} with fees ${JSON.stringify(vest_fee_gas_2)}`);
             await scrt_client.tx.compute.executeContract({
-                contractAddress: rpt,
-                codeHash: RPTcontractsHash,
+                contract_address: rpt,
+                code_hash: RPTcontractsHash,
                 sender: sender_address,
                 msg: { vest: {} }
             }, { broadcastCheckIntervalMs: 10_000, gasLimit: vest_fee_gas_2, broadcastTimeoutMs: 240_000 });
@@ -158,7 +161,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
             eachLimit(poolsV3, 1, async (p, cb) => {
                 const next_epoch_should_be = moment().diff(moment(p.created), "days");
                 const pool_info: any = await scrt_client.query.compute.queryContract({
-                    contractAddress: p.rewards_contract,
+                    contract_address: p.rewards_contract,
                     query: { rewards: { pool_info: { at: new Date().getTime() } } }
                 });
                 let next_epoch_is = pool_info.rewards.pool_info.clock.number;
@@ -169,7 +172,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                     async (callback) => {
                         try {
                             const result = await scrt_client.tx.compute.executeContract({
-                                contractAddress: p.rewards_contract,
+                                contract_address: p.rewards_contract,
                                 sender: sender_address,
                                 msg: {
                                     rewards: {
@@ -188,7 +191,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                             await wait(20000);
                             //check if the call went through even though it threw an error
                             const pool_info: any = await scrt_client.query.compute.queryContract({
-                                contractAddress: p.rewards_contract,
+                                contract_address: p.rewards_contract,
                                 query: { rewards: { pool_info: { at: new Date().getTime() } } }
                             });
                             if (pool_info.rewards.pool_info.clock.number === next_epoch_is + 1) {
