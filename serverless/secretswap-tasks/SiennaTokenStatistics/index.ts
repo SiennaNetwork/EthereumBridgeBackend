@@ -1,13 +1,10 @@
 
 import { AzureFunction, Context } from "@azure/functions";
 import { schedule } from "./circulating_supply";
-import { whilst } from "async";
 import moment from "moment";
 import { findWhere } from "underscore";
 import Decimal from "decimal.js";
 import { SecretNetworkClient } from "secretjs";
-import { LendOverseer, Agent, LendOverseerMarket, Snip20, LendMarketState, Decimal256, ContractLink } from "siennajs";
-import { batchMultiCall } from "../lib/multicall";
 import { DB } from "../lib/db";
 import { get_scrt_client } from "../lib/client";
 
@@ -119,7 +116,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
     const sienna_rewards_pool = await db.collection("rewards_data").findOne({ "inc_token.symbol": "SIENNA", "rewards_token.symbol": "SIENNA", version: "4.1" });
     const staked_sienna_count = new Decimal(sienna_rewards_pool.total_locked).div(Decimal.pow(10, sienna_rewards_pool.inc_token.decimals)).toDecimalPlaces(0).toNumber();
 
-    const circulating_supply = new Decimal(fixedValue.supply).sub(staked_sienna_count).sub(tokensLockedByTeam).add(fixedValue.vesting || 0).toNumber();
+    const circulating_supply = new Decimal(fixedValue.supply).sub(staked_sienna_count).sub(tokensLockedByTeam).add(fixedValue.vesting || 0).ceil().toNumber();
 
     const pools = await db.collection("secretswap_pools").find().toArray().catch(
         (err) => {
@@ -133,6 +130,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
         });
 
 
+    const sienna_market_price: any = await db.collection("sienna_market_price").findOne({});
+
 
     const rewards_data = await db.collection("rewards_data").find({
         "inc_token.address": token.dst_address
@@ -144,7 +143,7 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     const staked = rewards_data.reduce((prev, pool) => {
         const poolTokens = new Decimal(pool.total_locked).div(new Decimal(10).pow(pool.inc_token.decimals));
-        const poolUSD = new Decimal(poolTokens).mul(token.price);
+        const poolUSD = new Decimal(poolTokens).mul(sienna_market_price.price_pool.coinbase);
         return new Decimal(prev).add(poolUSD).toNumber();
     }, 0);
 
@@ -164,9 +163,9 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
                 symbol: token.display_props.symbol,
                 decimals: token_info.decimals,
                 circulating_supply: circulating_supply,
-                price_usd: new Decimal(token.price).toNumber(),
+                price_usd: new Decimal(sienna_market_price.price_pool.coinbase).toNumber(),
                 contract_address: token.dst_address,
-                market_cap_usd: new Decimal(token.price).mul(circulating_supply).toNumber(),
+                market_cap_usd: new Decimal(sienna_market_price.price_pool.coinbase).mul(circulating_supply).toNumber(),
                 tokens_locked_by_team: tokensLockedByTeam,
                 network: "Secret Network",
                 type: "SNIP-20",
@@ -182,8 +181,8 @@ const timerTrigger: AzureFunction = async function (context: Context, myTimer: a
 
     await db.collection("sienna_token_historical_data").insertOne({
         date: new Date(),
-        market_cap_usd: new Decimal(token.price).mul(circulating_supply).toNumber(),
-        price_usd: new Decimal(token.price).toNumber(),
+        market_cap_usd: new Decimal(sienna_market_price.price_pool.coinbase).mul(circulating_supply).toNumber(),
+        price_usd: new Decimal(sienna_market_price.price_pool.coinbase).toNumber(),
         circulating_supply: circulating_supply,
         max_supply: new Decimal(token_info.total_supply).div(
             Decimal.pow(10, token_info.decimals)
